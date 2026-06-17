@@ -1,0 +1,38 @@
+# godot-usd-bridge
+# Distilled from the standard GitHub C++ / CMake / VisualStudio and Godot 4
+# templates, trimmed to what this project actually produces.
+
+# ── CMake build output (presets build out-of-source) ──
+/build/
+/out/
+cmake-build-*/
+
+# ── OpenUSD: cloned, built, and installed locally by scripts/build_usd.ps1 ──
+/thirdparty/
+
+# ── Compiled artifacts (binaries ship via release zips, never committed) ──
+*.dll
+*.pdb
+*.exp
+*.ilk
+*.obj
+*.lib
+*.so
+*.dylib
+
+# ── Addon: only the .gdextension manifest and license texts are committed; ──
+# ── the binaries (above) and USD plugin resources (below) are build output ──
+/addons/godot-usd-bridge/usd/
+
+# ── Godot editor cache / import DB for the demo project (regenerated) ──
+.godot/
+
+# ── Visual Studio / MSVC ──
+.vs/
+*.user
+
+# ── Editors & OS ──
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
