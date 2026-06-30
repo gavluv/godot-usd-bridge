@@ -27,6 +27,10 @@ cmake-build-*/
 # ── Godot editor cache / import DB for the demo project (regenerated) ──
 .godot/
 
+# ── Demo project's local copy of the addon (CMake installs it here from the ──
+# ── repo-root addons/ dir so `godot --path demo` can load it; not committed) ──
+/demo/addons/
+
 # ── Visual Studio / MSVC ──
 .vs/
 *.user
