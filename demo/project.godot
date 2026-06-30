@@ -1,0 +1,10 @@
+; Engine configuration file for the godot-usd-bridge demo project.
+; M0 walking skeleton: loads the extension and prints UsdBridge.ping().
+
+config_version=5
+
+[application]
+
+config/name="godot-usd-bridge demo"
+run/main_scene="res://main.tscn"
+config/features=PackedStringArray("4.6")
