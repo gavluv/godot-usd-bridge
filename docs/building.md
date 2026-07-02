@@ -2,10 +2,10 @@
 
 > [!WARNING]
 > **Early development.** This page documents what is implemented and verified
-> today: the toolchain, the GDExtension build (stage 2), and verification.
-> **Stage 1 — the OpenUSD build — is not written yet** (tasks 0.4/0.5). Those
-> sections are marked `TODO` and will be filled in once `scripts/build_usd.ps1`
-> exists and a clean build has actually been run.
+> today: the toolchain, the OpenUSD build (stage 1), the GDExtension build
+> (stage 2), and verification. **Linking the extension against USD and deploying
+> its resources is not implemented yet** (task 0.5); that section is marked
+> `TODO`. Until it lands, the two stages build independently.
 
 Windows x86_64 is the primary platform. Pinned versions live in
 [the spec, §3](godot-usd-bridge-spec.md#3-pinned-stack); this page links there
@@ -22,8 +22,11 @@ rather than restating them, so the two can't drift.
 | Git | any recent | Clone **recursively** for the `godot-cpp` submodule. |
 
 > [!NOTE]
-> You do **not** need a "Developer Command Prompt." The presets use the
-> `Visual Studio 17 2022` generator, which locates MSVC on its own — any shell works.
+> You do **not** need a "Developer Command Prompt" — any shell works for both
+> stages. Stage 2's presets use the `Visual Studio 17 2022` generator, which
+> locates MSVC on its own. Stage 1's `build_usd.py` *does* require `cl.exe` on
+> `PATH`, but `build_usd.ps1` initializes the MSVC environment itself
+> (via `vcvars64.bat`).
 
 ```sh
 git clone --recursive <repo-url>
@@ -32,13 +35,57 @@ cd godot-usd-bridge
 git submodule update --init --recursive
 ```
 
-## Stage 1 — Build OpenUSD &nbsp;⛔ TODO (lands with tasks 0.4/0.5)
+## Stage 1 — Build OpenUSD &nbsp;✅
 
-Not yet implemented. Intended shape (see spec §3 and ADR-002): `scripts/build_usd.ps1`
-clones OpenUSD at the pinned tag and builds it core-only / monolithic into
-`thirdparty/usd-install/` (gitignored). This section will be written once that
-script exists and a clean build is verified — including the exact `build_usd.py`
-flags, the produced DLL set (`usd_ms.dll` + `tbb12.dll`), and wall-clock expectations.
+One command; run it once (and again only when the pin bumps):
+
+```powershell
+pwsh scripts/build_usd.ps1
+```
+
+The script clones OpenUSD at the pinned tag (shallow) and runs USD's own
+`build_usd.py` with flags verified against that tag's source — core-only,
+monolithic, Python-free, oneTBB, release:
+
+```
+--no-python --no-imaging --no-examples --no-tutorials --no-tools
+--build-monolithic --onetbb --build-variant release
+```
+
+Before building, it initializes the **VS 2022 (17.x)** MSVC x64 environment via
+`vcvars64.bat` (located with `vswhere`). The 17.x pin is deliberate: USD must be
+compiled with the **same toolset as the extension** (stage 2's generator), or
+you risk a C++ ABI / CRT mismatch across the `usd_ms.dll` boundary. If
+auto-detection picks the wrong install, pass `-VsInstallPath`; `-Clean` wipes
+and rebuilds from scratch.
+
+Expect a cold build to take **tens of minutes**. Everything lands under the
+gitignored `thirdparty/`:
+
+| Directory | Contents |
+|---|---|
+| `thirdparty/OpenUSD/` | pinned source checkout |
+| `thirdparty/usd-src/`, `usd-build/` | dependency downloads and build intermediates |
+| `thirdparty/usd-install/` | **the install output — what stage 2 links against** |
+
+### Verified install layout (v26.05)
+
+| What | Where |
+|---|---|
+| `usd_ms.dll` + `usd_ms.lib` (the monolith) | `lib/` — note: **not** `bin/` |
+| `tbb12.dll` (+ `tbbmalloc*.dll`) | `bin/` |
+| `plugInfo.json` resource tree | `lib/usd/` — required at runtime; deployed in task 0.5 |
+| CMake package config | `pxrConfig.cmake` (root), `cmake/pxrTargets.cmake` |
+| Headers | `include/pxr/` |
+
+> [!NOTE]
+> `bin/` also contains 11 **MaterialX** DLLs — `usdMtlx` is part of core USD
+> even with `--no-imaging`. Whether any of them are load-time dependencies of
+> `usd_ms.dll` (and thus must ship in the addon) is determined in task 0.5;
+> the spec's "`usd_ms.dll` + `tbb12.dll`" packaging list is not yet confirmed.
+
+The script ends by asserting `usd_ms.dll` exists under the install dir and
+printing the resolved artifact paths.
 
 ## Stage 2 — Build the extension &nbsp;✅
 
@@ -101,6 +148,14 @@ godot-usd-bridge: pong
 
 ## Troubleshooting
 
+- **`ERROR: C++ compiler not found` from `build_usd.py`** — it needs `cl.exe`
+  on `PATH` (unlike stage 2). `build_usd.ps1` sets this up itself; if you see
+  this, the script's VS detection failed — check that VS 2022 (17.x) with the
+  C++ workload is installed, or pass `-VsInstallPath` explicitly.
+- **Stage 1 picked the wrong Visual Studio** — the script constrains `vswhere`
+  to 17.x on purpose; building USD with a newer/older toolset than the
+  extension invites ABI/CRT mismatches. Point `-VsInstallPath` at the same VS
+  install the stage-2 generator uses.
 - **`Identifier "UsdBridge" not declared in the current scope`** — the extension
   wasn't loaded: the editor warm-up was skipped, so `.godot/extension_list.cfg`
   is missing. Run the `--editor … --quit` pass, then the game run.
