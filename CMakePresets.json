@@ -17,7 +17,8 @@
       "cacheVariables": {
         "GODOTCPP_API_VERSION": "4.6",
         "GODOTCPP_USE_STATIC_CPP": "OFF",
-        "GODOTCPP_DISABLE_EXCEPTIONS": "OFF"
+        "GODOTCPP_DISABLE_EXCEPTIONS": "OFF",
+        "CMAKE_PREFIX_PATH": "${sourceDir}/thirdparty/usd-install"
       }
     },
     {

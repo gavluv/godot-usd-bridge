@@ -21,6 +21,21 @@ project(godot-usd-bridge LANGUAGES CXX)
 # ---------------------------------------------------------------------------
 add_subdirectory(extern/godot-cpp)
 
+# ---------------------------------------------------------------------------
+# OpenUSD (stage-1 output; scripts/build_usd.ps1 -> thirdparty/usd-install/).
+# find_package locates pxrConfig.cmake through CMAKE_PREFIX_PATH, which the
+# presets point at the install root. The monolithic build exposes one imported
+# target, `usd_m` (usd_ms.lib / usd_ms.dll -- cmake/pxrTargets-release.cmake),
+# and pxrConfig chains find_dependency(TBB) / find_dependency(MaterialX) from
+# config packages under <install>/lib/cmake/.
+# ---------------------------------------------------------------------------
+find_package(pxr CONFIG REQUIRED)
+
+# Stage 1 only builds a Release USD; our Debug preset links it too. This is
+# deliberate and safe: both configs compile with the release dynamic CRT (/MD,
+# never /MDd -- see GODOTCPP_DEBUG_CRT default), so no CRT mismatch results.
+set_target_properties(usd_m PROPERTIES MAP_IMPORTED_CONFIG_DEBUG "Release")
+
 add_library(godot-usd SHARED)
 
 target_sources(godot-usd PRIVATE
@@ -28,7 +43,12 @@ target_sources(godot-usd PRIVATE
 	src/usd_bridge.cpp
 )
 
-target_link_libraries(godot-usd PRIVATE godot::cpp)
+target_link_libraries(godot-usd PRIVATE godot::cpp usd_m)
+
+# PXR_INCLUDE_DIRS comes from pxrConfig.cmake; NOMINMAX because USD headers
+# include windows.h, whose min/max macros break std::min/std::max.
+target_include_directories(godot-usd PRIVATE ${PXR_INCLUDE_DIRS})
+target_compile_definitions(godot-usd PRIVATE NOMINMAX)
 
 # Match godot-cpp's own target settings so the ABI lines up.
 set_target_properties(godot-usd PROPERTIES
@@ -53,19 +73,31 @@ set_target_properties(godot-usd PROPERTIES
 	PDB_OUTPUT_DIRECTORY     "$<1:${ADDON_DIR}/bin>"
 )
 
-# Make the demo project self-contained: copy the committed manifest and the
-# freshly built DLL into demo/addons/godot-usd-bridge/ (gitignored) so that
-# `godot --path demo` resolves the res://-relative library path. The canonical
-# committed addon lives at the repo-root addons/ dir; this is just a local
-# install of it for the demo.
+# Deploy the runtime pieces into the addon dir (all deployed files gitignored):
+#   bin/ <- usd_ms.dll + its verified load-time closure (tbb12, MaterialXCore,
+#          MaterialXFormat -- from dumpbin /dependents; see docs/building.md).
+#          The extension DLL already lands here via the output dirs above.
+#   usd/ <- the plugInfo.json resource tree from <install>/lib/usd. USD cannot
+#          function without it (metadata is read from disk at runtime, not
+#          compiled into usd_ms.dll). A .gdignore keeps the Godot editor from
+#          importing the tree's thousands of files as project assets.
+# Then mirror the whole addon into demo/addons/ (gitignored) so `godot --path
+# demo` can load it; the canonical addon stays at the repo-root addons/ dir.
+set(USD_INSTALL_DIR "${CMAKE_SOURCE_DIR}/thirdparty/usd-install")
 set(DEMO_ADDON_DIR "${CMAKE_SOURCE_DIR}/demo/addons/godot-usd-bridge")
 add_custom_command(TARGET godot-usd POST_BUILD
-	COMMAND ${CMAKE_COMMAND} -E make_directory "${DEMO_ADDON_DIR}/bin"
 	COMMAND ${CMAKE_COMMAND} -E copy_if_different
-		"${ADDON_DIR}/godot-usd-bridge.gdextension"
-		"${DEMO_ADDON_DIR}/godot-usd-bridge.gdextension"
-	COMMAND ${CMAKE_COMMAND} -E copy_if_different
-		"$<TARGET_FILE:godot-usd>"
-		"${DEMO_ADDON_DIR}/bin/"
+		"${USD_INSTALL_DIR}/lib/usd_ms.dll"
+		"${USD_INSTALL_DIR}/bin/tbb12.dll"
+		"${USD_INSTALL_DIR}/bin/MaterialXCore.dll"
+		"${USD_INSTALL_DIR}/bin/MaterialXFormat.dll"
+		"${ADDON_DIR}/bin"
+	COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+		"${USD_INSTALL_DIR}/lib/usd"
+		"${ADDON_DIR}/usd"
+	COMMAND ${CMAKE_COMMAND} -E touch "${ADDON_DIR}/usd/.gdignore"
+	COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+		"${ADDON_DIR}"
+		"${DEMO_ADDON_DIR}"
 	VERBATIM
 )

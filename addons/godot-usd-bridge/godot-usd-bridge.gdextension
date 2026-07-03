@@ -7,3 +7,22 @@ compatibility_minimum = "4.6"
 
 windows.debug.x86_64 = "res://addons/godot-usd-bridge/bin/libgodot-usd.windows.template_debug.x86_64.dll"
 windows.release.x86_64 = "res://addons/godot-usd-bridge/bin/libgodot-usd.windows.template_release.x86_64.dll"
+
+; Godot preloads these before the extension library so Windows can resolve its
+; imports (the OS searches the *executable's* dir, not the extension's).
+; Listed leaf-first: MaterialXCore has no deps, MaterialXFormat needs Core,
+; usd_ms needs all three (verified via dumpbin /dependents).
+[dependencies]
+
+windows.debug.x86_64 = {
+	"res://addons/godot-usd-bridge/bin/MaterialXCore.dll": "",
+	"res://addons/godot-usd-bridge/bin/MaterialXFormat.dll": "",
+	"res://addons/godot-usd-bridge/bin/tbb12.dll": "",
+	"res://addons/godot-usd-bridge/bin/usd_ms.dll": ""
+}
+windows.release.x86_64 = {
+	"res://addons/godot-usd-bridge/bin/MaterialXCore.dll": "",
+	"res://addons/godot-usd-bridge/bin/MaterialXFormat.dll": "",
+	"res://addons/godot-usd-bridge/bin/tbb12.dll": "",
+	"res://addons/godot-usd-bridge/bin/usd_ms.dll": ""
+}
