@@ -41,7 +41,7 @@ The original premise ("Godot has no USD support") holds in spirit but needs prec
 
 | Component | Pin | Notes |
 |---|---|---|
-| OpenUSD | **v26.05** (latest release) | Boost-free since 24.11. Core-only build: `PXR_ENABLE_PYTHON_SUPPORT=OFF`, `PXR_BUILD_IMAGING=OFF`, `PXR_BUILD_MONOLITHIC=ON`. Remaining hard dep: oneTBB. |
+| OpenUSD | **v26.05** (latest release) | Boost-free since 24.11. Core-only build: `PXR_ENABLE_PYTHON_SUPPORT=OFF`, `PXR_BUILD_IMAGING=OFF`, `PXR_BUILD_MONOLITHIC=ON`. Remaining hard deps: oneTBB, MaterialX (via `usdMtlx`, even with imaging off). |
 | Godot | **4.6** (develop/test on latest 4.6.x patch; 4.6.3 at decision time) | `compatibility_minimum = 4.6` in `.gdextension`. Patch releases don't change the extension API — track them freely. *(OQ-1 resolved.)* |
 | godot-cpp | Submodule on a **v10/`master`** commit; targets 4.6 via `api_version` (no 4.6 branch/tag yet — re-pin to the v10 stable release branch when it ships) | Must build with **exceptions ON** (overrides godot-cpp default) and **RTTI ON**; USD requires both. |
 | Toolchain | MSVC (VS 2022), CMake ≥ 3.26 | **Dynamic CRT (`/MD`) everywhere** — godot-cpp defaults to static CRT on Windows; must be overridden to match `usd_ms.dll`. |
@@ -51,7 +51,7 @@ The original premise ("Godot has no USD support") holds in spirit but needs prec
 
 ### Linking & packaging model (v0.1 decision)
 
-**Monolithic shared:** ship `usd_ms.dll` (+ `tbb12.dll`) alongside `libgodot-usd.dll`, declared in the `.gdextension` `[dependencies]` section. Static-linking USD into the extension DLL is deferred — USD's `TF_REGISTRY` machinery relies on static initializers that static linking can strip, and shared is the well-trodden Windows path.
+**Monolithic shared:** ship `usd_ms.dll` and its load-time dependency closure — `tbb12.dll`, `MaterialXCore.dll`, `MaterialXFormat.dll` — alongside `libgodot-usd.dll`, declared leaf-first in the `.gdextension` `[dependencies]` section. *(Closure verified July 2026 via `dumpbin /dependents` on the v26.05 build: MaterialX is a core-USD dependency through `usdMtlx` even with imaging off — 4 DLLs, not the 2 originally assumed here — while `tbbmalloc*.dll` is not load-time required.)* Static-linking USD into the extension DLL is deferred — USD's `TF_REGISTRY` machinery relies on static initializers that static linking can strip, and shared is the well-trodden Windows path.
 
 **The known landmine:** even monolithic builds require USD's `plugInfo.json` resource tree (`usd/` directory) discoverable at runtime. We ship it next to the binaries and call `PlugRegistry::RegisterPlugins()` explicitly at extension init with a path resolved relative to the extension library. M0 includes an integration test that fails loudly if registration breaks.
 
@@ -59,7 +59,7 @@ The original premise ("Godot has no USD support") holds in spirit but needs prec
 
 **Decision: no containerized build (ADR-002).** A containerized Windows build was the traditional answer to pre-24.x USD's dependency sprawl (Boost especially). The 26.x core-only build is small enough that it doesn't need one; it's handled by:
 
-1. `scripts/build_usd.ps1` — clones OpenUSD at the pinned tag, invokes `build_usd.py` with `--no-python --no-imaging --no-examples --no-tutorials --no-tools --build-monolithic --onetbb` (verify exact flag names against the pinned tag's `--help`; `--onetbb` builds oneTBB → `tbb12.dll` to match `[dependencies]`, and confirm whether it's still opt-in vs the default), installs to `thirdparty/usd-install/` (gitignored).
+1. `scripts/build_usd.ps1` — clones OpenUSD at the pinned tag, invokes `build_usd.py` with `--no-python --no-imaging --no-examples --no-tutorials --no-tools --build-monolithic --onetbb --build-variant release`, installs to `thirdparty/usd-install/` (gitignored). *(Flags verified July 2026 against the v26.05 source; `--onetbb` is the default there — passed explicitly to record the ADR-003 decision. oneTBB → `tbb12.dll`, matching `[dependencies]`.)*
 2. GitHub Actions as the reproducibility layer — the USD build runs once per pin-bump and is cached.
 
 Revisit Docker (Windows containers + VS Build Tools) only if local/CI drift becomes a real problem.
@@ -167,7 +167,7 @@ Sizing: **S** ≤ half day · **M** 1–2 days · **L** 3+ days. Order within a 
 | 3.2 | Importer registration: `.usd/.usda/.usdc` import as `PackedScene` from FileSystem dock | **L** |
 | 3.3 | Import options UI: enumerate variant sets → selection options; payload policy; scale override; purpose toggle | M |
 | 3.4 | Instancing: instanceable prototypes → shared `ArrayMesh`; `PointInstancer` → `MultiMeshInstance3D` | **L** |
-| 3.5 | Release engineering: versioned GitHub release, addon zip (extension DLL + `usd_ms.dll` + `tbb12.dll` + `usd/` resources), install docs, README demo GIFs | M |
+| 3.5 | Release engineering: versioned GitHub release, addon zip (extension DLL + the 4-DLL USD closure (§3) + `usd/` resources), install docs, README demo GIFs | M |
 | 3.6 | Per-milestone devlog/writeup | S each |
 
 ---
