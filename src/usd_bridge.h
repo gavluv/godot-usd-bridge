@@ -14,9 +14,11 @@ class UsdBridge : public godot::RefCounted {
 
 protected:
 	static void _bind_methods();
+	bool _are_plugins_registered() const;
 
 public:
 	godot::String ping() const;
+	bool open_stage(const godot::String &p_path);
 };
 
 } // namespace godot_usd
