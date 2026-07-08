@@ -56,7 +56,7 @@ jobs:
 
       - name: Restore cached OpenUSD install
         id: usd-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: thirdparty/usd-install
           # Image name is in the key (runner.os is just "Windows"): a USD build
@@ -66,6 +66,16 @@ jobs:
       - name: Build OpenUSD (cache miss only)
         if: steps.usd-cache.outputs.cache-hit != 'true'
         run: pwsh scripts/build_usd.ps1
+
+      # Save immediately after building, NOT via the combined cache action:
+      # its post-job save only runs when the job succeeds, which would discard
+      # a 1-2h USD build every time a later step fails.
+      - name: Save OpenUSD install to cache
+        if: steps.usd-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: thirdparty/usd-install
+          key: usd-windows-2022-${{ hashFiles('scripts/build_usd.ps1') }}
 
       - name: Configure extension (windows-debug preset)
         run: cmake --preset windows-debug
@@ -85,10 +95,19 @@ jobs:
       - name: Editor warm-up (registers the GDExtension)
         timeout-minutes: 10
         run: |
-          & $env:GODOT --headless --editor --path demo --quit
+          # The first-run headless editor pass can exit nonzero on the bare
+          # runner even when the scan completes (locally it exits 0). Its exit
+          # code is not the meaningful signal, so it is printed but ignored;
+          # this step's contract is its postcondition -- the extension is
+          # registered in .godot/extension_list.cfg. The smoke test below is
+          # the strict gate.
+          & $env:GODOT --headless --editor --path demo --quit 2>&1 | Tee-Object -FilePath warmup.log
+          Write-Host "godot editor exit code: $LASTEXITCODE (ignored; checking postcondition)"
           if (-not (Test-Path "demo/.godot/extension_list.cfg")) {
+            Get-Content warmup.log
             throw "Warm-up did not register the extension (demo/.godot/extension_list.cfg missing)"
           }
+          exit 0
 
       - name: Smoke test — open stage, print prim tree
         timeout-minutes: 5
