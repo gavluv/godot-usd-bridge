@@ -37,7 +37,12 @@ env:
 
 jobs:
   windows:
-    runs-on: windows-latest
+    # Pinned to windows-2022, NOT windows-latest: as of mid-2026 windows-latest
+    # is Windows Server 2025 with Visual Studio 2026 (18.x) only, while this
+    # project's toolchain is pinned to VS 2022 / 17.x (spec section 3 -- the
+    # CMake presets' generator and build_usd.ps1's vswhere range both require
+    # it). Revisit when the toolchain pin is deliberately bumped.
+    runs-on: windows-2022
     timeout-minutes: 150 # cold USD build dominates; cached runs take minutes
     defaults:
       run:
@@ -54,7 +59,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: thirdparty/usd-install
-          key: usd-${{ runner.os }}-${{ hashFiles('scripts/build_usd.ps1') }}
+          # Image name is in the key (runner.os is just "Windows"): a USD build
+          # is only valid for the toolchain of the image that built it.
+          key: usd-windows-2022-${{ hashFiles('scripts/build_usd.ps1') }}
 
       - name: Build OpenUSD (cache miss only)
         if: steps.usd-cache.outputs.cache-hit != 'true'
