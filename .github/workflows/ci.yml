@@ -1,0 +1,114 @@
+# CI for godot-usd-bridge (M0 task 0.7).
+#
+# One Windows job: restore (or build) OpenUSD, build the extension through the
+# pinned CMake presets, then run the demo smoke tests headless against the
+# exact pinned Godot binary — never "latest".
+#
+# Facts this workflow depends on (all verified locally, July 2026):
+# - The OpenUSD install cache key embeds the hash of build_usd.ps1, which pins
+#   the USD tag and build flags — a pin bump or flag change busts the cache.
+# - pxrConfig.cmake bakes absolute paths from the machine that built USD. Safe
+#   here: GitHub's workspace path is deterministic per repo, so restores land
+#   at the same absolute path the cache was built at.
+# - The smoke tests run the *_console.exe* Godot binary: the GUI-subsystem
+#   godot.exe detaches from the console on Windows, breaking output capture
+#   and exit codes in scripts.
+# - An editor warm-up pass must precede the headless game run: Godot only
+#   registers .gdextension files into .godot/extension_list.cfg during an
+#   editor filesystem scan; --import alone is not sufficient.
+# - The Godot *editor* binary loads the windows.debug entries of the
+#   .gdextension, so the smoke test exercises the windows-debug preset.
+#   Release builds join with packaging (task 3.5).
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.6.3-stable
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 150 # cold USD build dominates; cached runs take minutes
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Checkout (with godot-cpp submodule)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Restore cached OpenUSD install
+        id: usd-cache
+        uses: actions/cache@v4
+        with:
+          path: thirdparty/usd-install
+          key: usd-${{ runner.os }}-${{ hashFiles('scripts/build_usd.ps1') }}
+
+      - name: Build OpenUSD (cache miss only)
+        if: steps.usd-cache.outputs.cache-hit != 'true'
+        run: pwsh scripts/build_usd.ps1
+
+      - name: Configure extension (windows-debug preset)
+        run: cmake --preset windows-debug
+
+      - name: Build extension
+        run: cmake --build --preset windows-debug
+
+      - name: Download pinned Godot ${{ env.GODOT_VERSION }}
+        run: |
+          $url = "https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}/Godot_v${{ env.GODOT_VERSION }}_win64.exe.zip"
+          Invoke-WebRequest -Uri $url -OutFile godot.zip
+          Expand-Archive godot.zip -DestinationPath godot-bin
+          $exe = "godot-bin/Godot_v${{ env.GODOT_VERSION }}_win64_console.exe"
+          if (-not (Test-Path $exe)) { throw "Godot console binary not found at $exe" }
+          "GODOT=$((Resolve-Path $exe).Path)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Editor warm-up (registers the GDExtension)
+        timeout-minutes: 10
+        run: |
+          & $env:GODOT --headless --editor --path demo --quit
+          if (-not (Test-Path "demo/.godot/extension_list.cfg")) {
+            throw "Warm-up did not register the extension (demo/.godot/extension_list.cfg missing)"
+          }
+
+      - name: Smoke test — open stage, print prim tree
+        timeout-minutes: 5
+        run: |
+          & $env:GODOT --headless --path demo 2>&1 | Tee-Object -FilePath smoke.log
+          if ($LASTEXITCODE -ne 0) { throw "Smoke test exited with code $LASTEXITCODE" }
+          foreach ($needle in @(
+            "Registered 30 USD plugins",
+            "/Root/Child/Cube (Mesh)",
+            "godot-usd-bridge: pong"
+          )) {
+            if (-not (Select-String -Path smoke.log -SimpleMatch $needle -Quiet)) {
+              throw "Expected output missing from smoke.log: '$needle'"
+            }
+          }
+
+      # The 0.5 "landmine" integration test: a broken install (missing usd/
+      # resource tree) must fail loudly with a nonzero exit — never silently,
+      # and never by crashing.
+      - name: Negative test — missing USD resources must fail loudly
+        timeout-minutes: 5
+        run: |
+          Rename-Item demo/addons/godot-usd-bridge/usd usd_disabled
+          & $env:GODOT --headless --path demo 2>&1 | Tee-Object -FilePath negative.log
+          $code = $LASTEXITCODE
+          Rename-Item demo/addons/godot-usd-bridge/usd_disabled usd
+          if ($code -eq 0) { throw "Negative test unexpectedly passed (exit 0) - registration failure went undetected" }
+          if (-not (Select-String -Path negative.log -SimpleMatch "Failed to register plugins" -Quiet)) {
+            throw "Expected registration error message missing from negative.log"
+          }
