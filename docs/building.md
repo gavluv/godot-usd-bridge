@@ -170,11 +170,20 @@ godot --headless --editor --path demo --quit   # warm-up: registers the extensio
 godot --headless --path demo                    # runs the demo scene
 ```
 
-Expected stdout from the second command:
+The demo's `main.gd` pings the extension, then opens the checked-in fixture
+(`demo/fixtures/smoke.usda`) and prints its prim tree; it exits `0` on success
+and nonzero on failure (which is what CI asserts). Expected stdout from the
+second command:
 
 ```
 [USD_BRIDGE] Registered 30 USD plugins
 godot-usd-bridge: pong
+Opening USD stage: <abs-path>/demo/fixtures/smoke.usda
+/Root (Xform)
+/Root/Child (Xform)
+/Root/Child/Cube (Mesh)
+/Root/Props (Scope)
+/Root/Props/Quad (Mesh)
 ```
 
 (30 is the plugin count of the pinned v26.05 core-only build; expect it to

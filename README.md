@@ -1,5 +1,6 @@
 # godot-usd-bridge
 
+![CI](https://github.com/gavluv/godot-usd-bridge/actions/workflows/ci.yml/badge.svg)
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Godot 4.6+](https://img.shields.io/badge/Godot-4.6%2B-478CBF?logo=godotengine&logoColor=white)
 ![Status: early development](https://img.shields.io/badge/status-early%20development-orange)
@@ -25,7 +26,7 @@ Two ways in: a GDScript-callable runtime loader first, then editor integration s
 
 The project ships in milestones (mapping to the [spec](docs/godot-usd-bridge-spec.md)):
 
-- [ ] **M0 — Walking skeleton.** The extension loads in the Godot editor on Windows, opens a `.usda`, and prints the prim tree — locally and in CI.
+- [x] **M0 — Walking skeleton.** The extension loads in the Godot editor on Windows, opens a `.usda`, and prints the prim tree — locally and in CI.
 - [ ] **v0.1 — Core geometry.** Xform hierarchy, mesh import with `faceVarying` vertex splitting, winding / unit / up-axis normalization. The Pixar Kitchen Set loads with correct geometry, orientation, and scale.
 - [ ] **v0.2 — Materials & subsets.** `UsdPreviewSurface` → `StandardMaterial3D`, textures via Ar, `GeomSubset`s → surfaces.
 - [ ] **v0.3 — Editor integration.** FileSystem-dock import, variant / payload / scale options, instancing. Tagged release with a prebuilt Windows addon zip.
@@ -41,7 +42,7 @@ Further out: Linux/macOS binaries, AssetLibrary submission, export, `UsdSkel`, H
 ## Building
 
 > [!NOTE]
-> Build tooling lands in M0; detailed instructions and troubleshooting will live in `docs/building.md`.
+> Detailed instructions, the verified install layout, and troubleshooting live in [docs/building.md](docs/building.md).
 
 The build is two stages — compile OpenUSD once, then build the extension against it:
 

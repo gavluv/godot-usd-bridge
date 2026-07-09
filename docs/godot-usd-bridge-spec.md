@@ -46,7 +46,7 @@ The original premise ("Godot has no USD support") holds in spirit but needs prec
 | godot-cpp | Submodule on a **v10/`master`** commit; targets 4.6 via `api_version` (no 4.6 branch/tag yet — re-pin to the v10 stable release branch when it ships) | Must build with **exceptions ON** (overrides godot-cpp default) and **RTTI ON**; USD requires both. |
 | Toolchain | MSVC (VS 2022), CMake ≥ 3.26 | **Dynamic CRT (`/MD`) everywhere** — godot-cpp defaults to static CRT on Windows; must be overridden to match `usd_ms.dll`. |
 | Build system | CMake + CMakePresets | Settled (USD is CMake-native). SCons dropped. |
-| CI | GitHub Actions | `windows-latest` primary; `ubuntu-latest` added in v0.2+. USD build cached as artifact. Headless Godot downloaded at the **exact pinned 4.6.x version**, never "latest". |
+| CI | GitHub Actions | `windows-2022` pinned *(corrected July 2026: `windows-latest` now ships VS 2026 only — the runner follows the VS 2022 toolchain pin)*; `ubuntu-latest` added in v0.2+. USD install cached via `actions/cache`, keyed on the build-script hash. Headless Godot downloaded at the **exact pinned 4.6.x version**, never "latest". |
 | Tests | GUT (in-engine, GDScript) + golden `.usda` fixtures | Headless via `godot --headless`. C++ unit framework only if translation core grows enough to warrant it (OQ-3). |
 
 ### Linking & packaging model (v0.1 decision)
