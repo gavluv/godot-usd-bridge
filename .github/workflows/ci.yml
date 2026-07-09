@@ -138,3 +138,7 @@ jobs:
           if (-not (Select-String -Path negative.log -SimpleMatch "Failed to register plugins" -Quiet)) {
             throw "Expected registration error message missing from negative.log"
           }
+          # Success path: Godot deliberately exited nonzero above, and the
+          # runner's pwsh wrapper propagates the last native exit code unless
+          # we end with an explicit success.
+          exit 0
