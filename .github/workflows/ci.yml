@@ -83,6 +83,10 @@ jobs:
       - name: Build extension
         run: cmake --build --preset windows-debug
 
+      - name: Unit tests (doctest)
+        timeout-minutes: 5
+        run: ctest --preset windows-debug
+
       - name: Download pinned Godot ${{ env.GODOT_VERSION }}
         run: |
           $url = "https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}/Godot_v${{ env.GODOT_VERSION }}_win64.exe.zip"
