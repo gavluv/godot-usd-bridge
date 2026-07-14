@@ -224,7 +224,7 @@ Runs the engine/editor with no window or rendering device — for servers, autom
 ### GUT (Godot Unit Test)
 The de-facto **in-engine unit-testing framework** for Godot, by *bitwes* — you write tests in GDScript, with a rich assert library, doubling/mocking, a CLI, and JUnit-XML output ([repo](https://github.com/bitwes/Gut), [docs](https://gut.readthedocs.io/)). The 9.x line targets Godot 4 and has a 4.6-compatible release; MIT-licensed.
 
-**Why it matters here:** Our chosen test harness (`GUT + golden .usda fixtures`). It runs headless in CI and asserts the *exact* vertex/index counts and AABBs from the [vertex-split](#primvars--interpolation--and-vertex-splitting-the-heart) work. The spec leaves open (**OQ-3**) whether to *also* add a C++ unit framework (e.g. doctest) for `translate/` if it grows; GUT + goldens is the baseline.
+**Why it matters here:** Our chosen in-engine test harness (`GUT + golden .usda fixtures`). It runs headless in CI and asserts the *exact* vertex/index counts and AABBs from the [vertex-split](#primvars--interpolation--and-vertex-splitting-the-heart) work. **OQ-3 was resolved (July 2026)**: [doctest](#doctest) joins it for C++-level unit tests of `translate/`'s pure math — GUT covers the in-engine, end-to-end layer; doctest covers the math beneath it.
 
 ---
 
@@ -279,6 +279,12 @@ A **static initializer** is code that runs *before* `main()` (or on DLL load) to
 
 **Why it matters here:** USD is CMake-native, so CMake won (SCons dropped). Presets are how the **load-bearing flags** (`/MD`, exceptions, RTTI) stay pinned and un-hand-editable (tasks 0.2; CLAUDE.md "CMake presets only"). The preset *drafting* is Tier-2 but the flags demand full comprehension.
 → see also [The C runtime: /MD vs /MT](#the-c-runtime-md-vs-mt-the-heap-corruption-landmine), [C++ — exceptions & RTTI](#c--exceptions--rtti)
+
+### doctest
+A **single-header C++ testing framework** ([repo](https://github.com/doctest/doctest), [tutorial](https://github.com/doctest/doctest/blob/master/doc/markdown/tutorial.md)) in a specific niche: Catch2-style ergonomics at the lowest compile-time cost of the feature-rich frameworks. Tests self-register via `TEST_CASE` macros; plain assertions (`CHECK` continues on failure, `REQUIRE` aborts the case) *decompose expressions* so failures print both operand values; `SUBCASE` gives shared-setup branching (the body re-runs from the top per subcase path); `doctest::Approx` handles floating-point comparison. With `DOCTEST_CONFIG_IMPLEMENT` the host supplies its own `main()`, initializing libraries before tests run. The name honors Python's doctest — tests *can* co-locate with production code and compile out via `DOCTEST_CONFIG_DISABLE` (a capability this project deliberately doesn't use: Tier-1 files stay clean, the extension DLL stays lean).
+
+**Why it matters here:** Resolves **OQ-3** (July 2026, at the v0.1 kickoff): `src/translate/` gets C++-level unit tests *alongside* the GUT + goldens baseline, because the conventions module (task 1.1) was designed as pure math — `(metersPerUnit, upAxis) → Transform3D` — testable with no stage, no editor, no engine (godot-cpp's math types are engine-independent). Pinned as a submodule at `extern/doctest`, same pattern as godot-cpp. The custom-`main` hook is load-bearing: the test executable must call `PlugRegistry::RegisterPlugins` before any stage-reading test, or USD fatally asserts (the same failure CI's negative test guards).
+→ see also [GUT (Godot Unit Test)](#gut-godot-unit-test), [CMake & CMakePresets](#cmake--cmakepresets), [The plugin system](#the-plugin-system-tf-plug-plugregistry-pluginfojson)
 
 ### Boost (historical)
 **Boost** is a large collection of peer-reviewed C++ libraries that historically were a heavyweight dependency of pre-24.x USD on Windows ([boost.org](https://www.boost.org/)). OpenUSD has been **Boost-free since the 24.11 release**.

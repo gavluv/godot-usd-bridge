@@ -47,7 +47,7 @@ The original premise ("Godot has no USD support") holds in spirit but needs prec
 | Toolchain | MSVC (VS 2022), CMake ≥ 3.26 | **Dynamic CRT (`/MD`) everywhere** — godot-cpp defaults to static CRT on Windows; must be overridden to match `usd_ms.dll`. |
 | Build system | CMake + CMakePresets | Settled (USD is CMake-native). SCons dropped. |
 | CI | GitHub Actions | `windows-2022` pinned *(corrected July 2026: `windows-latest` now ships VS 2026 only — the runner follows the VS 2022 toolchain pin)*; `ubuntu-latest` added in v0.2+. USD install cached via `actions/cache`, keyed on the build-script hash. Headless Godot downloaded at the **exact pinned 4.6.x version**, never "latest". |
-| Tests | GUT (in-engine, GDScript) + golden `.usda` fixtures | Headless via `godot --headless`. C++ unit framework only if translation core grows enough to warrant it (OQ-3). |
+| Tests | GUT (in-engine, GDScript) + golden `.usda` fixtures; **doctest** for C++ unit tests of `translate/` | Headless via `godot --headless`. *(OQ-3 resolved July 2026 — see ADR-005: doctest added at the v0.1 kickoff; GUT covers the in-engine end-to-end layer, doctest the pure math beneath it.)* |
 
 ### Linking & packaging model (v0.1 decision)
 
@@ -190,4 +190,4 @@ Sizing: **S** ≤ half day · **M** 1–2 days · **L** 3+ days. Order within a 
 
 - **OQ-1 — RESOLVED (June 2026):** Pin Godot **4.6** (latest stable). godot-cpp at the 4.6 tag, `compatibility_minimum = 4.6`. Rationale: the pin sets the compatibility *floor*, not ceiling; 4.6 is three patch releases settled; the task 3.1 spike wants the newest GDExtension API surface. Lower the floor later only if real users ask.
 - **OQ-2:** `.usdz` in v0.2 stretch or punt to backlog?
-- **OQ-3:** Add a C++ unit test framework (doctest) for `translate/`, or is GUT + goldens sufficient through v0.2?
+- **OQ-3 — RESOLVED (July 2026):** Add **doctest**, from the v0.1 kickoff (ADR-005). Deciding factor: task 1.1's conventions module was shaped as pure math — `(metersPerUnit, upAxis) → Transform3D` — so its tests need no stage, editor, or engine (godot-cpp's math types are engine-independent). GUT + goldens remains the in-engine, end-to-end layer. Vendored as a pinned submodule at `extern/doctest`, per the godot-cpp pattern.
