@@ -38,9 +38,15 @@ set_target_properties(usd_m PROPERTIES MAP_IMPORTED_CONFIG_DEBUG "Release")
 
 add_library(godot-usd SHARED)
 
+# The hand-written translation core (src/translate/). Shared between the
+# extension and the doctest unit-test executable, so every translate/ file
+# added here is compiled into both. Populated starting with task 1.1.
+set(TRANSLATE_SOURCES)
+
 target_sources(godot-usd PRIVATE
 	src/register_types.cpp
 	src/usd_bridge.cpp
+	${TRANSLATE_SOURCES}
 )
 
 target_link_libraries(godot-usd PRIVATE godot::cpp usd_m)
@@ -101,3 +107,57 @@ add_custom_command(TARGET godot-usd POST_BUILD
 		"${DEMO_ADDON_DIR}"
 	VERBATIM
 )
+
+# ---------------------------------------------------------------------------
+# Unit tests (doctest -- extern/doctest submodule, pinned; see ADR-005).
+# A plain console exe: translate/ is pure math over engine-independent
+# godot-cpp types, so no running engine is involved. The custom main()
+# (tests/main.cpp) registers USD's plugins before any test runs -- required
+# for stage-reading tests; see docs/building.md.
+# ---------------------------------------------------------------------------
+option(GODOT_USD_BUILD_TESTS "Build the doctest unit-test executable" ON)
+
+if(GODOT_USD_BUILD_TESTS)
+	enable_testing()
+
+	add_executable(godot-usd-tests
+		tests/main.cpp
+		tests/test_harness.cpp
+		${TRANSLATE_SOURCES}
+	)
+
+	target_include_directories(godot-usd-tests PRIVATE
+		"${CMAKE_SOURCE_DIR}/extern/doctest"
+		"${CMAKE_SOURCE_DIR}/src"
+		${PXR_INCLUDE_DIRS}
+	)
+
+	# godot::cpp for the (engine-independent) math types translate/ uses;
+	# usd_m for the stage-reading halves and harness checks.
+	target_link_libraries(godot-usd-tests PRIVATE godot::cpp usd_m)
+
+	# Baked absolute paths: fine for a local/CI test binary, never shipped.
+	target_compile_definitions(godot-usd-tests PRIVATE
+		NOMINMAX
+		GODOT_USD_TEST_PLUGIN_DIR="${USD_INSTALL_DIR}/lib/usd"
+		GODOT_USD_TEST_FIXTURE_DIR="${CMAKE_SOURCE_DIR}/tests/fixtures"
+	)
+
+	set_target_properties(godot-usd-tests PROPERTIES
+		CXX_STANDARD 17
+		CXX_EXTENSIONS OFF
+	)
+
+	# The exe loads usd_ms.dll at start; give it the 4-DLL closure beside it.
+	add_custom_command(TARGET godot-usd-tests POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+			"${USD_INSTALL_DIR}/lib/usd_ms.dll"
+			"${USD_INSTALL_DIR}/bin/tbb12.dll"
+			"${USD_INSTALL_DIR}/bin/MaterialXCore.dll"
+			"${USD_INSTALL_DIR}/bin/MaterialXFormat.dll"
+			"$<TARGET_FILE_DIR:godot-usd-tests>"
+		VERBATIM
+	)
+
+	add_test(NAME godot-usd-unit COMMAND godot-usd-tests)
+endif()
