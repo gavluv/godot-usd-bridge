@@ -1,0 +1,12 @@
+#usda 1.0
+(
+    doc = """Conventions fixture (task 1.1): authored Y-up, centimeter stage.
+    Expected root correction: uniform scale 0.01, identity rotation."""
+    defaultPrim = "Root"
+    metersPerUnit = 0.01
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+}

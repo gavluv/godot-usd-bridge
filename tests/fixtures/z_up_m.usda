@@ -1,0 +1,13 @@
+#usda 1.0
+(
+    doc = """Conventions fixture (task 1.1): authored Z-up, meter stage.
+    Expected root correction: unit scale, rotation about +X by -90 degrees
+    (old +Z becomes Godot +Y up; old +Y lands on Godot -Z)."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "Root"
+{
+}

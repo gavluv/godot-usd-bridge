@@ -1,0 +1,14 @@
+#usda 1.0
+(
+    doc = """Conventions fixture (task 1.1): NO authored metersPerUnit and NO
+    authored upAxis -- exercises the fallback path. Expected root correction:
+    uniform scale 0.01 (USD's unauthored default is centimeters), and the up
+    axis reported by UsdGeomGetFallbackUpAxis() (Y unless the site config
+    overrides it -- tests must not hardcode Y; see ADR-005 / spec OQ-3
+    discussion)."""
+    defaultPrim = "Root"
+)
+
+def Xform "Root"
+{
+}
