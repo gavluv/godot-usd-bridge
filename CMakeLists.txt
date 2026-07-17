@@ -41,7 +41,9 @@ add_library(godot-usd SHARED)
 # The hand-written translation core (src/translate/). Shared between the
 # extension and the doctest unit-test executable, so every translate/ file
 # added here is compiled into both. Populated starting with task 1.1.
-set(TRANSLATE_SOURCES)
+set(TRANSLATE_SOURCES
+	src/translate/conventions.cpp
+)
 
 target_sources(godot-usd PRIVATE
 	src/register_types.cpp
@@ -123,6 +125,7 @@ if(GODOT_USD_BUILD_TESTS)
 	add_executable(godot-usd-tests
 		tests/main.cpp
 		tests/test_harness.cpp
+		tests/test_conventions.cpp
 		${TRANSLATE_SOURCES}
 	)
 
