@@ -193,6 +193,38 @@ change when the USD pin bumps.)
 > `--import` alone is **not** sufficient — it does not write `extension_list.cfg`.
 > Use the `--editor … --quit` pass.
 
+## Editor / IntelliSense setup &nbsp;*(optional)*
+
+Completions, go-to-definition, and live errors for the C++ sources. Optional —
+nothing here affects the build. **clangd** is the recommended engine; the
+Microsoft C/C++ (cpptools) engine tends to exhaust its memory on USD's header
+graph.
+
+1. Opening the repo prompts you to install the recommended **clangd** extension
+   (`llvm-vs-code-extensions.vscode-clangd`, from the committed `.vscode/extensions.json`);
+   install it and accept its offer to download the clangd binary. The committed
+   `.vscode/settings.json` disables the cpptools engine so the two don't fight.
+2. Generate the compile database clangd reads:
+   ```powershell
+   pwsh scripts/gen_compile_commands.ps1
+   ```
+   This configures the tooling-only `windows-tooling` preset (Ninja +
+   `CMAKE_EXPORT_COMPILE_COMMANDS`) into `build/tooling/` **and** generates
+   godot-cpp's bindings there — the generated `Node3D`/`gdextension_interface.h`
+   headers live in the build tree, so clangd can't resolve engine types without
+   this step. It builds no C++; regular builds still go through the VS presets.
+3. Reload the editor. The committed `.clangd` points clangd at `build/tooling`.
+
+**Rerun `gen_compile_commands.ps1`** after adding/removing a source file or
+bumping the godot-cpp pin, so the include set and generated headers stay current.
+
+Notes:
+- clangd normally finds the MSVC/Windows-SDK system headers on its own. If
+  standard-library headers show as "file not found," launch the editor from
+  **Developer PowerShell for VS 2022** (`code .`) so the MSVC environment is present.
+- USD hovers show raw Doxygen (`\li`, `<em>`) — a clangd limitation with
+  Doxygen-heavy headers, cosmetic; the signature line renders cleanly.
+
 ## Troubleshooting
 
 - **`Could not find a package configuration file provided by "pxr"` at

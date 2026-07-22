@@ -30,6 +30,18 @@
       "name": "windows-release",
       "inherits": "windows-base",
       "cacheVariables": { "GODOTCPP_TARGET": "template_release" }
+    },
+    {
+      "name": "windows-tooling",
+      "inherits": "windows-base",
+      "description": "IDE tooling only: emits compile_commands.json for clangd. NOT for building (use windows-debug/release). Generate via scripts/gen_compile_commands.ps1.",
+      "generator": "Ninja",
+      "architecture": { "value": "x64", "strategy": "external" },
+      "binaryDir": "${sourceDir}/build/tooling",
+      "cacheVariables": {
+        "GODOTCPP_TARGET": "template_debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
     }
   ],
   "buildPresets": [

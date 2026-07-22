@@ -1,0 +1,9 @@
+{
+	// Prompts contributors to install the project's editor toolchain on open.
+	// clangd: C++ IntelliSense (cpptools' engine can't hold USD's header graph).
+	// editorconfig: honors .editorconfig so indentation matches the project.
+	"recommendations": [
+		"llvm-vs-code-extensions.vscode-clangd",
+		"editorconfig.editorconfig"
+	]
+}

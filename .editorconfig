@@ -1,0 +1,30 @@
+# EditorConfig — cross-editor formatting, so indentation stays consistent
+# regardless of editor. Honored natively by Visual Studio 2022, CLion, etc.;
+# VS Code needs the EditorConfig extension (recommended in .vscode/extensions.json).
+# Line endings are intentionally left to .gitattributes, not set here.
+root = true
+
+[*]
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+# Hand-written code and build files use tabs (matches src/ and godot-cpp).
+[*.{h,hpp,c,cc,cpp}]
+indent_style = tab
+
+[{CMakeLists.txt,*.cmake}]
+indent_style = tab
+
+[*.ps1]
+indent_style = tab
+
+# Formats that require or conventionally use spaces (tabs are invalid in YAML).
+[*.{json,yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# Markdown: spaces, and keep trailing whitespace (two trailing spaces = hard break).
+[*.md]
+indent_style = space
+trim_trailing_whitespace = false

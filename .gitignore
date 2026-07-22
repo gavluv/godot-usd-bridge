@@ -36,7 +36,11 @@ cmake-build-*/
 *.user
 
 # ── Editors & OS ──
-.vscode/
+# Ignore .vscode except the shared project config (clangd/cpptools setup,
+# exclusions, recommended extensions) — personal files (launch.json, ...) stay out.
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 .idea/
 .DS_Store
 Thumbs.db

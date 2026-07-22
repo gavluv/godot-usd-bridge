@@ -1,0 +1,14 @@
+# clangd configuration (editor-agnostic; committed).
+#
+# Points clangd at the compile database produced by the Ninja "windows-tooling"
+# preset (regenerate with scripts/gen_compile_commands.ps1). That database
+# carries the USD / godot-cpp include paths and defines (NOMINMAX, etc.) for
+# every source file, which is how clangd resolves headers and completions.
+#
+# The database (build/tooling) uses MSVC (cl); clangd usually detects the MSVC /
+# Windows-SDK system headers on its own. Only if standard-library headers show
+# as "file not found" do you need the MSVC environment -- launch the editor from
+# "Developer PowerShell for VS 2022". Full setup: docs/building.md, section
+# "Editor / IntelliSense setup".
+CompileFlags:
+  CompilationDatabase: build/tooling

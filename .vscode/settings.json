@@ -1,0 +1,36 @@
+{
+	// Tabs, matching src/ style. .editorconfig is the cross-editor source of
+	// truth; these are the VS-Code fallback for anyone without that extension.
+	// detectIndentation off or VS Code overrides per-file from existing content.
+	"editor.insertSpaces": false,
+	"editor.detectIndentation": false,
+
+	// IntelliSense is clangd, not cpptools -- cpptools' engine can't hold USD's
+	// header graph in memory. Disabling its engine stops the two from fighting
+	// (the cpptools extension can stay installed for debugging).
+	"C_Cpp.intelliSenseEngine": "disabled",
+
+	// clangd reads the compile DB via the committed .clangd file. query-driver
+	// lets it run cl.exe to discover MSVC/SDK system headers -- which requires
+	// the MSVC env, so launch VS Code from "Developer PowerShell for VS 2022"
+	// (run `code .` there) or standard-library headers will show false errors.
+	"clangd.arguments": [
+		"--background-index",
+		"--query-driver=**/cl.exe",
+		"--header-insertion=never",
+		"--pch-storage=memory"
+	],
+
+	// Keep the file watcher and search out of the huge build/dependency trees.
+	"files.watcherExclude": {
+		"**/thirdparty/**": true,
+		"**/build/**": true,
+		"**/demo/addons/**": true,
+		"**/.godot/**": true
+	},
+	"search.exclude": {
+		"thirdparty/**": true,
+		"build/**": true,
+		"demo/addons/**": true
+	}
+}
