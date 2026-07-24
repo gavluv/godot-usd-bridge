@@ -38,17 +38,29 @@ set_target_properties(usd_m PROPERTIES MAP_IMPORTED_CONFIG_DEBUG "Release")
 
 add_library(godot-usd SHARED)
 
-# The hand-written translation core (src/translate/). Shared between the
-# extension and the doctest unit-test executable, so every translate/ file
-# added here is compiled into both. Populated starting with task 1.1.
-set(TRANSLATE_SOURCES
+# The hand-written translation core (src/translate/), split by engine purity.
+#
+# PURE: engine-independent -- math/conversion over godot-cpp's variant types
+# (Transform3D, Basis, ...) and USD. Compiled into BOTH the extension and the
+# doctest unit-test exe, so these must never touch generated engine classes
+# (Node3D, etc.). The membership test is literally "can the test exe execute
+# it." Files are unsuffixed when wholly pure (conventions), else `*_convert`.
+set(TRANSLATE_PURE_SOURCES
 	src/translate/conventions.cpp
+	src/translate/xform_convert.cpp
+)
+
+# ENGINE: depends on generated engine classes (scene-tree construction, etc.).
+# Compiled into the extension ONLY -- never the test exe, so a test that calls
+# into this layer fails to link rather than crashing at runtime. `*_import`.
+set(TRANSLATE_ENGINE_SOURCES
 )
 
 target_sources(godot-usd PRIVATE
 	src/register_types.cpp
 	src/usd_bridge.cpp
-	${TRANSLATE_SOURCES}
+	${TRANSLATE_PURE_SOURCES}
+	${TRANSLATE_ENGINE_SOURCES}
 )
 
 target_link_libraries(godot-usd PRIVATE godot::cpp usd_m)
@@ -112,10 +124,10 @@ add_custom_command(TARGET godot-usd POST_BUILD
 
 # ---------------------------------------------------------------------------
 # Unit tests (doctest -- extern/doctest submodule, pinned; see ADR-005).
-# A plain console exe: translate/ is pure math over engine-independent
-# godot-cpp types, so no running engine is involved. The custom main()
-# (tests/main.cpp) registers USD's plugins before any test runs -- required
-# for stage-reading tests; see docs/building.md.
+# A plain console exe over TRANSLATE_PURE_SOURCES only (no engine-dependent
+# code), so no running engine is involved. The custom main() (tests/main.cpp)
+# registers USD's plugins before any test runs -- required for stage-reading
+# tests; see docs/building.md.
 # ---------------------------------------------------------------------------
 option(GODOT_USD_BUILD_TESTS "Build the doctest unit-test executable" ON)
 
@@ -126,7 +138,8 @@ if(GODOT_USD_BUILD_TESTS)
 		tests/main.cpp
 		tests/test_harness.cpp
 		tests/test_conventions.cpp
-		${TRANSLATE_SOURCES}
+		tests/test_xform_convert.cpp
+		${TRANSLATE_PURE_SOURCES}
 	)
 
 	target_include_directories(godot-usd-tests PRIVATE
