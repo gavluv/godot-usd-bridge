@@ -1,0 +1,50 @@
+#usda 1.0
+(
+    doc = """Xform-import fixture (task 1.2): a prim that resets the xform
+    stack, alongside a sibling that does not.
+
+    "!resetXformStack!" as the first entry of xformOpOrder means the prim
+    ignores ALL ancestor transforms (xformable.h:211-213, :850). The Godot
+    analogue is Node3D::set_as_top_level(true).
+
+    Metrics are centimeters ON PURPOSE: metersPerUnit = 0.01 gives a non-identity
+    root correction (uniform scale 0.01), which is what makes this fixture a
+    detector rather than a formality.
+
+    Expected (the imported tree is rooted at a synthetic node standing in for
+    the stage's pseudo-root; it carries the root correction, so every prim node
+    below it keeps its USD-authored local transform unmodified):
+      <stage root>     scale 0.01 (the root correction), origin (0, 0, 0)
+      /Root            top_level = false, local origin (10, 0, 0)
+      /Root/Inherits   top_level = false, local origin (0, 1, 0)
+      /Root/Detached   top_level = TRUE, and its transform must be
+                       root_correction * local = scale(0.01) applied to
+                       translate(0, 0, 5)  ->  origin (0, 0, 0.05),
+                       basis uniformly scaled by 0.01
+
+    DETECTOR: a top-level node ignores every ancestor -- including the root
+    correction node. If the importer sets the raw local transform without
+    pre-composing the root correction, /Root/Detached lands at origin (0, 0, 5):
+    100x too large, an island in an otherwise correctly scaled scene."""
+    defaultPrim = "Root"
+    metersPerUnit = 0.01
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    double3 xformOp:translate = (10, 0, 0)
+    uniform token[] xformOpOrder = ["xformOp:translate"]
+
+    def Xform "Inherits"
+    {
+        double3 xformOp:translate = (0, 1, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    def Xform "Detached"
+    {
+        double3 xformOp:translate = (0, 0, 5)
+        uniform token[] xformOpOrder = ["!resetXformStack!", "xformOp:translate"]
+    }
+}

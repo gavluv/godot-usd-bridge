@@ -1,0 +1,45 @@
+#usda 1.0
+(
+    doc = """Xform-import fixture (task 1.2): nested hierarchy with a real
+    transform at every level, so the matrix conversion is exercised end-to-end
+    through the node tree.
+
+    Metrics are deliberately neutral (metersPerUnit = 1, upAxis = Y) so the root
+    correction is identity and expected values are the raw xformOps.
+
+    The imported tree is rooted at a synthetic node standing in for the stage's
+    pseudo-root (named from the root layer), so the prim nodes below are its
+    descendants -- 4 nodes total for this file.
+
+    Expected LOCAL transforms (what each Node3D should carry):
+      /Root        origin (10, 0, 0), identity basis
+      /Root/Child  origin (0, 5, 0),  uniform scale 2
+      /Root/Child/Leaf   origin (0, 0, 0), rotation +90 deg about Y
+
+    DETECTOR: these are per-node *local* transforms. If the importer used
+    GetLocalToWorldTransform instead of GetLocalTransformation, /Root/Child
+    would come out at origin (10, 5, 0) and /Root/Child/Leaf would inherit the
+    ancestors' translation and scale -- and the error compounds with depth."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    double3 xformOp:translate = (10, 0, 0)
+    uniform token[] xformOpOrder = ["xformOp:translate"]
+
+    def Xform "Child"
+    {
+        double3 xformOp:translate = (0, 5, 0)
+        float3 xformOp:scale = (2, 2, 2)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+
+        def Xform "Leaf"
+        {
+            float3 xformOp:rotateXYZ = (0, 90, 0)
+            uniform token[] xformOpOrder = ["xformOp:rotateXYZ"]
+        }
+    }
+}

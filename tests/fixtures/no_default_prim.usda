@@ -1,0 +1,52 @@
+#usda 1.0
+(
+    doc = """Xform-import fixture (task 1.2): NO defaultPrim authored, and more
+    than one prim at the top level.
+
+    The importer always roots the imported tree at the stage's pseudo-root, so
+    this file is not an exceptional path -- it is the case that proves the rule
+    holds when there is genuinely no defaultPrim to fall back from, AND that
+    multiple top-level prims all survive the import. (defaultPrim is a
+    *referencing* hint -- "which prim does a reference to this layer target?"
+    (layer.h:831-833) -- not a declaration that the rest of the stage is
+    unimportant, so it must not decide what gets imported.)
+
+    The pseudo-root is not a real prim: its path is "/", its name and typeName
+    are empty, and it has no xformOps.
+
+    Expected:
+      - both /First and /Second appear in the imported tree, parented under a
+        single synthetic root node; /Second/SecondChild nests below /Second
+      - the synthetic root is named from the root layer's display name, run
+        through validate_node_name() -- so this file yields the node name
+        "no_default_prim_usda" (the '.' is not legal in a Godot node name).
+        Anonymous / in-memory layers have no display name; those fall back to
+        "_root"
+      - the synthetic root carries metadata like every other node:
+        usd_prim_path = "/" and usd_type_name = "" (empty). Empty type is NOT
+        special-cased here -- it is a legitimate value that also appears on
+        typeless prims (`def "Foo" {}`), so the root is consistent with them
+        rather than an exception. Consumers that specifically need the stage
+        root can test usd_prim_path == "/", which is unambiguous.
+
+    Stages exported without a defaultPrim are common in the wild, so this path
+    is not an exotic edge case."""
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "First"
+{
+    double3 xformOp:translate = (1, 0, 0)
+    uniform token[] xformOpOrder = ["xformOp:translate"]
+}
+
+def Xform "Second"
+{
+    double3 xformOp:translate = (0, 2, 0)
+    uniform token[] xformOpOrder = ["xformOp:translate"]
+
+    def Xform "SecondChild"
+    {
+    }
+}

@@ -1,0 +1,56 @@
+#usda 1.0
+(
+    doc = """Xform-import fixture (task 1.2): prims that USD's default traversal
+    predicate excludes.
+
+    UsdPrimDefaultPredicate = active AND defined AND loaded AND non-abstract
+    (prim.h:1420-1424). UsdPrim::GetChildren() applies it; GetAllChildren()
+    does NOT (prim.h:1430-1431). UsdStage::Traverse() applies it too, so an
+    importer that uses GetAllChildren() disagrees with its own prim-tree print
+    on this very file.
+
+    Expected: exactly ONE child of /Root is imported -- /Root/Visible. With the
+    synthetic stage-root node above /Root, that is 3 nodes total; unfiltered
+    traversal would give 6.
+      /Root/Visible    def, active            -> imported
+      /Root/Deactivated  active = false       -> excluded (and its whole
+                                                subtree is pruned from
+                                                composition, so /Deactivated/Buried
+                                                must not appear either)
+      /Root/Abstract   class prim (abstract)  -> excluded
+      /Root/Overlay    over, never defined    -> excluded
+
+    DETECTOR: with GetAllChildren() the imported tree gains Deactivated,
+    Abstract, and Overlay nodes. With GetChildren() only Visible survives."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Xform "Visible"
+    {
+        double3 xformOp:translate = (1, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    def Xform "Deactivated" (
+        active = false
+    )
+    {
+        def Xform "Buried"
+        {
+        }
+    }
+
+    class Xform "Abstract"
+    {
+    }
+
+    over "Overlay"
+    {
+        double3 xformOp:translate = (0, 0, 9)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+}
