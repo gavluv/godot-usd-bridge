@@ -1,4 +1,5 @@
 #include "usd_bridge.h"
+#include "translate/xform_import.h"
 
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
@@ -16,6 +17,7 @@ namespace godot_usd {
 void UsdBridge::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("ping"), &UsdBridge::ping);
 	ClassDB::bind_method(D_METHOD("open_stage", "path"), &UsdBridge::open_stage);
+	ClassDB::bind_method(D_METHOD("import_stage", "path"), &UsdBridge::import_stage);
 }
 
 String UsdBridge::ping() const {
@@ -45,6 +47,24 @@ bool UsdBridge::open_stage(const String &p_path) {
 	}
 
 	return true;
+}
+
+godot::Node3D *UsdBridge::import_stage(const String &p_path) {
+	UtilityFunctions::print("Importing USD stage: " + p_path);
+
+	if (!_are_plugins_registered()) {
+		ERR_PRINT("USD plugins are not registered; cannot import stage");
+		return nullptr;
+	}
+
+	auto stage = PXR_NS::UsdStage::Open(p_path.utf8().get_data());
+	if (stage == nullptr) {
+		ERR_PRINT("Failed to open USD stage: " + p_path);
+		return nullptr;
+	}
+
+	auto root = translate::import_stage(stage);
+	return root;
 }
 
 } // namespace godot_usd
