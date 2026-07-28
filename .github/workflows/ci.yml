@@ -121,12 +121,73 @@ jobs:
           foreach ($needle in @(
             "Registered 30 USD plugins",
             "/Root/Child/Cube (Mesh)",
-            "godot-usd-bridge: pong"
+            "godot-usd-bridge: pong",
+            "Imported root: smoke_usda (1 children)"
           )) {
             if (-not (Select-String -Path smoke.log -SimpleMatch $needle -Quiet)) {
               throw "Expected output missing from smoke.log: '$needle'"
             }
           }
+
+      # Xform import (task 1.2): run the dump tool over the fixtures and match
+      # lines that encode specific importer behaviours. Each needle is chosen
+      # to fail if a known bug class regresses — see the fixtures' own doc
+      # metadata for what each one detects. GUT (task 1.8) will replace these
+      # greps with real assertions; until then this is the only automated
+      # guard on the translation core's engine-side output.
+      - name: Xform import — dump fixtures and check node trees
+        timeout-minutes: 5
+        run: |
+          $expected = [ordered]@{
+            "nested_xforms" = @(
+              # Synthetic stage-root node above the prim nodes.
+              "- nested_xforms_usda  path=/ type=",
+              # LOCAL transforms, not world: world-space would put Child at (10, 5, 0).
+              "- Child  path=/Root/Child type=Xform origin=(0.0000, 5.0000, 0.0000) scale=(2.0000, 2.0000, 2.0000)",
+              "- Leaf  path=/Root/Child/Leaf type=Xform origin=(0.0000, 0.0000, 0.0000)",
+              "euler_deg=(-0.0000, 90.0000, 0.0000)",
+              "nodes: 4"
+            )
+            "reset_xform_stack" = @(
+              # The root correction lives on the synthetic root, so prim nodes
+              # keep their USD-authored local transforms unmodified.
+              "- reset_xform_stack_usda  path=/ type= origin=(0.0000, 0.0000, 0.0000) scale=(0.0100, 0.0100, 0.0100)",
+              "- Root  path=/Root type=Xform origin=(10.0000, 0.0000, 0.0000) scale=(1.0000, 1.0000, 1.0000)",
+              # A top-level node ignores ancestors, so it must pre-compose the
+              # correction itself, or Detached lands at z=5 (100x too large).
+              "- Detached  path=/Root/Detached type=Xform origin=(0.0000, 0.0000, 0.0500) scale=(0.0100, 0.0100, 0.0100) euler_deg=(-0.0000, 0.0000, 0.0000) top_level=true",
+              "nodes: 4"
+            )
+            "no_default_prim" = @(
+              # No defaultPrim to fall back from, and multiple top-level prims:
+              # all of them must survive the import.
+              "- no_default_prim_usda  path=/ type=",
+              "- First  path=/First",
+              "- SecondChild  path=/Second/SecondChild",
+              "nodes: 4"
+            )
+            "inactive_prims" = @(
+              # Default predicate filtering: inactive / abstract / undefined
+              # prims are excluded. Unfiltered traversal would give 6 nodes.
+              "- Visible  path=/Root/Visible",
+              "nodes: 3"
+            )
+          }
+
+          foreach ($fixture in $expected.Keys) {
+            $usd = (Resolve-Path "tests/fixtures/$fixture.usda").Path
+            $log = "dump-$fixture.log"
+            Write-Host "== $fixture =="
+            & $env:GODOT --headless --path demo -s tools/dump_stage.gd -- "$usd" 2>&1 |
+              Tee-Object -FilePath $log
+            if ($LASTEXITCODE -ne 0) { throw "dump_stage.gd failed for $fixture (exit $LASTEXITCODE)" }
+            foreach ($needle in $expected[$fixture]) {
+              if (-not (Select-String -Path $log -SimpleMatch $needle -Quiet)) {
+                throw "$fixture : expected line not found: '$needle'"
+              }
+            }
+          }
+          exit 0
 
       # The 0.5 "landmine" integration test: a broken install (missing usd/
       # resource tree) must fail loudly with a nonzero exit — never silently,
