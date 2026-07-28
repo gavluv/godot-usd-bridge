@@ -19,4 +19,18 @@ func _ready() -> void:
 		get_tree().quit(1)
 		return
 
-	get_tree().quit(0)
+	var root: Node3D = bridge.import_stage(fixture_path)
+	if root == null:
+		push_error("Smoke test FAILED: import_stage returned null for " + fixture_path)
+		get_tree().quit(1)
+		return
+	add_child(root)
+	print("Imported root: ", root.name, " (", root.get_child_count(), " children)")
+
+	# Headless (CI) must exit so the run can be asserted on; a windowed run
+	# (F5) stays open so the imported tree can be inspected in the Remote
+	# scene dock — Node3Ds have no visual, so that dock is the only view of it.
+	# Detect via DisplayServer, not OS.get_cmdline_args(): Godot strips
+	# engine-consumed flags like --headless before scripts ever see them.
+	if DisplayServer.get_name() == "headless":
+		get_tree().quit(0)
