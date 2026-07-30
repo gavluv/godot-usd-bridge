@@ -1,0 +1,69 @@
+#usda 1.0
+(
+    doc = """Mesh-import fixture (task 1.3): two quads sharing an edge, so that
+    faceVertexIndices is NOT the identity map.
+
+    quad_mesh.usda deliberately uses indices [0,1,2,3], which makes corner
+    offsets and point indices numerically identical -- readable, but structurally
+    unable to catch a converter that confuses the two. This fixture separates
+    them: from corner 4 onward the values diverge from their offsets.
+
+    Metrics are neutral (metersPerUnit = 1, upAxis = Y) so the root correction
+    is identity.
+
+    TOPOLOGY
+      points            6 entries, two quads side by side in the XZ plane
+      faceVertexCounts  [4, 4]
+      faceVertexIndices [0, 1, 2, 3,  3, 2, 4, 5]
+
+      Points 2 and 3 are SHARED: they are the middle edge, used by both faces.
+      Both faces wind counter-clockwise seen from +Y (USD's rightHanded default).
+
+      corner offset : 0  1  2  3   4  5  6  7
+      point index   : 0  1  2  3   3  2  4  5
+                                   ^^^^^^^^^^ diverges from the offsets
+
+    EXPECTED -- triangulate (corner offsets, counts only)
+      4 - 2 = 2 triangles per face, 4 total, 12 entries:
+        [0,1,2,  0,2,3,  4,5,6,  4,6,7]
+      Face 1 anchors at corner 4, NOT 0.
+
+    EXPECTED -- after mapping corners to point indices
+        [0,1,2,  0,2,3,  3,2,4,  3,4,5]
+
+      Compare the two arrays above: they differ from entry 6 onward. Any code
+      that emits corner offsets where point indices belong -- or that stops
+      mapping early -- produces the first array (or a hybrid) instead of the
+      second.
+
+    EXPECTED -- Godot arrays
+      ARRAY_VERTEX : 6 entries
+      ARRAY_INDEX  : 12 entries, [0,1,2, 0,2,3, 3,2,4, 3,4,5]
+      one surface, PRIMITIVE_TRIANGLES
+      AABB spans (-2, 0, -1) to (2, 0, 1)
+
+    DETECTOR: this file catches two bug classes quad_mesh.usda cannot --
+      1. conflating corner offsets with point indices (identical under an
+         identity map, different here from entry 6 on)
+      2. a mapping loop bounded by the wrong array. Note the sizes are all
+         different on purpose: 12 triangle indices, 8 faceVertexIndices,
+         6 points. A loop bounded by faceVertexIndices leaves the last 4
+         entries unmapped; one bounded by points leaves the last 6.
+
+    NOT EXPECTED YET: winding is not flipped (task 1.5) and there are no
+    normals (task 1.4). Verify structurally, not by eye."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Mesh "SharedEdgeQuads"
+    {
+        float3[] extent = [(-2, 0, -1), (2, 0, 1)]
+        int[] faceVertexCounts = [4, 4]
+        int[] faceVertexIndices = [0, 1, 2, 3, 3, 2, 4, 5]
+        point3f[] points = [(-2, 0, -1), (-2, 0, 1), (0, 0, 1), (0, 0, -1), (2, 0, 1), (2, 0, -1)]
+    }
+}
