@@ -48,6 +48,7 @@ add_library(godot-usd SHARED)
 set(TRANSLATE_PURE_SOURCES
 	src/translate/conventions.cpp
 	src/translate/xform_convert.cpp
+	src/translate/mesh_convert.cpp
 )
 
 # ENGINE: depends on generated engine classes (scene-tree construction, etc.).
@@ -140,6 +141,7 @@ if(GODOT_USD_BUILD_TESTS)
 		tests/test_harness.cpp
 		tests/test_conventions.cpp
 		tests/test_xform_convert.cpp
+		tests/test_mesh_convert.cpp
 		${TRANSLATE_PURE_SOURCES}
 	)
 
