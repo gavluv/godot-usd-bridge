@@ -1,6 +1,7 @@
 #include "xform_import.h"
 #include "conventions.h"
 #include "xform_convert.h"
+#include "mesh_import.h"
 
 #include <godot_cpp/variant/transform3d.hpp>
 #include <godot_cpp/variant/string.hpp>
@@ -12,6 +13,7 @@
 #include <pxr/usd/sdf/layer.h>
 #include <pxr/usd/usd/prim.h>
 #include <pxr/usd/usdGeom/xformCache.h>
+#include <pxr/usd/usdGeom/mesh.h>
 
 #include <string>
 
@@ -26,7 +28,14 @@ static godot::Node3D *import_prim(const PXR_NS::UsdPrim &p_prim, PXR_NS::UsdGeom
 		return nullptr;
 	}
 
-	auto node = memnew(godot::Node3D);
+	godot::Node3D *node;
+
+	if (p_prim.IsA<PXR_NS::UsdGeomMesh>()) {
+		node = import_mesh(PXR_NS::UsdGeomMesh(p_prim));
+	}
+	else {
+		node = memnew(godot::Node3D);
+	}
 
 	bool resets_xform_stack = false;
 
