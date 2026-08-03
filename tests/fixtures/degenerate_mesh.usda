@@ -1,0 +1,40 @@
+#usda 1.0
+(
+    doc = """Mesh-import fixture (task 1.3): a structurally VALID mesh that
+    yields no triangles, because every face is degenerate.
+
+    A face needs at least 3 corners to produce a triangle (n - 2 of them).
+    faceVertexCounts of [2, 2] is well-formed USD -- sum(counts) == 4 ==
+    faceVertexIndices.size(), and every index is in range for points -- it just
+    describes two edges rather than any surface.
+
+    Expected:
+      - conversion SUCCEEDS (is_valid): nothing about this data is malformed
+      - triangulate returns an empty array
+      - NO surface is added to the ArrayMesh; the MeshInstance3D is created but
+        left with no mesh at all (dump shows `mesh=<none>`)
+      - a WARNING is logged, not an error -- this is legal-but-pointless USD,
+        not a defect
+
+    The node is still created so that any children of the Mesh prim keep their
+    place in the hierarchy.
+
+    CONTRAST with malformed_mesh.usda, which reaches the same `mesh=<none>`
+    state via a genuine data defect and logs an ERROR instead. The two are
+    indistinguishable in the node tree by design; the log level is what
+    separates them."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Mesh "AllDegenerate"
+    {
+        float3[] extent = [(0, 0, 0), (2, 0, 0)]
+        int[] faceVertexCounts = [2, 2]
+        int[] faceVertexIndices = [0, 1, 1, 2]
+        point3f[] points = [(0, 0, 0), (1, 0, 0), (2, 0, 0)]
+    }
+}
