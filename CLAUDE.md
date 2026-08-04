@@ -16,3 +16,15 @@
 - Spec: docs/godot-usd-bridge-spec.md (pinned versions, milestones, ADRs)
 - Build: CMake presets only; never hand-invoke with ad-hoc flags
   (CRT /MD, exceptions ON, RTTI ON are load-bearing).
+
+## windows.h macro collisions
+USD headers pull in `windows.h`, whose macros collide with godot-cpp
+identifiers. For example, `winnetwk.h` defines `CONNECT_DEFERRED`, which wrecks
+the `ConnectFlags` enum in `godot_cpp/classes/object.hpp`, producing ~200 syntax
+errors *inside a godot-cpp header* that name neither USD nor the file you edited.
+
+`src/platform_fixup.h` neutralizes this: CMake force-includes it into every
+translation unit, where it loads `windows.h` once and undefines the offenders.
+Include order is therefore unconstrained anywhere in the project. If a new
+collision appears, add an `#undef` to that header rather than reordering
+includes.

@@ -36,6 +36,21 @@ find_package(pxr CONFIG REQUIRED)
 # never /MDd -- see GODOTCPP_DEBUG_CRT default), so no CRT mismatch results.
 set_target_properties(usd_m PROPERTIES MAP_IMPORTED_CONFIG_DEBUG "Release")
 
+# ---------------------------------------------------------------------------
+# Every translation unit force-includes src/platform_fixup.h, which loads
+# <windows.h> and undefines the macros that collide with godot-cpp identifiers
+# (CONNECT_DEFERRED from winnetwk.h being the one that bites). Doing it here
+# rather than by hand means include order never matters: no source file has to
+# remember to put godot-cpp above USD. See the header for the full story.
+#
+# MSVC only for now. When Linux lands (v0.2+), the clang/gcc spelling is
+# "SHELL:-include <path>"; the header is already _WIN32-guarded, so it compiles
+# to nothing there.
+# ---------------------------------------------------------------------------
+set(GODOT_USD_FORCE_INCLUDE
+	"$<$<CXX_COMPILER_ID:MSVC>:/FI${CMAKE_SOURCE_DIR}/src/platform_fixup.h>"
+)
+
 add_library(godot-usd SHARED)
 
 # The hand-written translation core (src/translate/), split by engine purity.
@@ -69,9 +84,11 @@ target_sources(godot-usd PRIVATE
 target_link_libraries(godot-usd PRIVATE godot::cpp usd_m)
 
 # PXR_INCLUDE_DIRS comes from pxrConfig.cmake; NOMINMAX because USD headers
-# include windows.h, whose min/max macros break std::min/std::max.
+# include windows.h, whose min/max macros break std::min/std::max. Collisions
+# windows.h offers no opt-out for are handled by platform_fixup.h.
 target_include_directories(godot-usd PRIVATE ${PXR_INCLUDE_DIRS})
 target_compile_definitions(godot-usd PRIVATE NOMINMAX)
+target_compile_options(godot-usd PRIVATE ${GODOT_USD_FORCE_INCLUDE})
 
 # Match godot-cpp's own target settings so the ABI lines up.
 set_target_properties(godot-usd PROPERTIES
@@ -162,6 +179,8 @@ if(GODOT_USD_BUILD_TESTS)
 		GODOT_USD_TEST_PLUGIN_DIR="${USD_INSTALL_DIR}/lib/usd"
 		GODOT_USD_TEST_FIXTURE_DIR="${CMAKE_SOURCE_DIR}/tests/fixtures"
 	)
+
+	target_compile_options(godot-usd-tests PRIVATE ${GODOT_USD_FORCE_INCLUDE})
 
 	set_target_properties(godot-usd-tests PROPERTIES
 		CXX_STANDARD 17
