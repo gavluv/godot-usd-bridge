@@ -54,6 +54,9 @@ func _dump(node: Node, depth: int) -> int:
 	else:
 		line += " class=" + node.get_class()
 
+	if node is MeshInstance3D:
+		line += _mesh_summary((node as MeshInstance3D).mesh)
+
 	print(line)
 
 	var count := 1
@@ -63,6 +66,24 @@ func _dump(node: Node, depth: int) -> int:
 
 func _meta_or(node: Node, key: String, fallback: String) -> String:
 	return str(node.get_meta(key)) if node.has_meta(key) else fallback
+
+## Summarizes a MeshInstance3D's mesh structurally. Task 1.3 produces no
+## normals (1.4) and unflipped winding (1.5), so meshes are not meaningfully
+## viewable — counts and AABB are how you verify them.
+func _mesh_summary(mesh: Mesh) -> String:
+	if mesh == null:
+		return "  mesh=<none>"
+	var out := "  mesh='" + str(mesh.resource_name) + "'"
+	out += " surfaces=" + str(mesh.get_surface_count())
+	for s in mesh.get_surface_count():
+		var arrays: Array = mesh.surface_get_arrays(s)
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		out += " surf%d[verts=%d indices=%d tris=%d]" % [s, verts.size(), idx.size(), idx.size() / 3]
+		out += " idx=" + str(Array(idx))
+	var aabb := mesh.get_aabb()
+	out += " aabb_pos=" + _v3(aabb.position) + " aabb_size=" + _v3(aabb.size)
+	return out
 
 ## Rounds to 4 decimals so float noise doesn't churn CI needles.
 func _v3(v: Vector3) -> String:

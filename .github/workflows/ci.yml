@@ -129,13 +129,17 @@ jobs:
             }
           }
 
-      # Xform import (task 1.2): run the dump tool over the fixtures and match
-      # lines that encode specific importer behaviours. Each needle is chosen
-      # to fail if a known bug class regresses — see the fixtures' own doc
-      # metadata for what each one detects. GUT (task 1.8) will replace these
-      # greps with real assertions; until then this is the only automated
-      # guard on the translation core's engine-side output.
-      - name: Xform import — dump fixtures and check node trees
+      # Xform + mesh import (tasks 1.2, 1.3): run the dump tool over the
+      # fixtures and match lines that encode specific importer behaviours. Each
+      # expected line is chosen to fail if a known bug class regresses — see the
+      # fixtures' own doc metadata for what each one detects. GUT (task 1.8)
+      # will replace these greps with real assertions; until then this is the
+      # only automated guard on the translation core's engine-side output.
+      #
+      # Two fixtures deliberately produce diagnostics: degenerate_mesh logs a
+      # WARNING and malformed_mesh an ERROR. Both still exit 0 — the assertion
+      # is that the message appears AND the node survives without a mesh.
+      - name: Xform + mesh import — dump fixtures and check node trees
         timeout-minutes: 5
         run: |
           $expected = [ordered]@{
@@ -170,6 +174,36 @@ jobs:
               # Default predicate filtering: inactive / abstract / undefined
               # prims are excluded. Unfiltered traversal would give 6 nodes.
               "- Visible  path=/Root/Visible",
+              "nodes: 3"
+            )
+            "quad_mesh" = @(
+              # Fan triangulation of a single quad: 4 corners -> 2 triangles.
+              "mesh='Quad' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
+              "aabb_pos=(-1.0000, 0.0000, -1.0000) aabb_size=(2.0000, 0.0000, 2.0000)",
+              "nodes: 3"
+            )
+            "shared_edge_quads" = @(
+              # Non-identity faceVertexIndices: corner offsets and point indices
+              # diverge from entry 6 on, so this catches conflating the two.
+              # Corner offsets would be [.. 4,5,6, 4,6,7]; point indices differ.
+              "mesh='SharedEdgeQuads' surfaces=1 surf0[verts=6 indices=12 tris=4] idx=[0, 1, 2, 0, 2, 3, 3, 2, 4, 3, 4, 5]",
+              "aabb_pos=(-2.0000, 0.0000, -1.0000) aabb_size=(4.0000, 0.0000, 2.0000)",
+              "nodes: 3"
+            )
+            "degenerate_mesh" = @(
+              # Valid but triangle-less: no surface is added, and it is a
+              # WARNING (legal USD) rather than an error.
+              "WARNING: USD mesh has no geometry: /Root/AllDegenerate",
+              "- AllDegenerate  path=/Root/AllDegenerate type=Mesh",
+              "mesh=<none>",
+              "nodes: 3"
+            )
+            "malformed_mesh" = @(
+              # Out-of-range point index: conversion fails loudly, but the node
+              # is still created so the prim keeps its place in the hierarchy.
+              "ERROR: Failed to convert USD mesh to Godot mesh: /Root/BadIndices",
+              "- BadIndices  path=/Root/BadIndices type=Mesh",
+              "mesh=<none>",
               "nodes: 3"
             )
           }
