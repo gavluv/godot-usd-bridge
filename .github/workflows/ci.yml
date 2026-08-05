@@ -1,4 +1,4 @@
-# CI for godot-usd-bridge (M0 task 0.7).
+﻿# CI for godot-usd-bridge (M0 task 0.7).
 #
 # One Windows job: restore (or build) OpenUSD, build the extension through the
 # pinned CMake presets, then run the demo smoke tests headless against the
@@ -13,12 +13,13 @@
 # - The smoke tests run the *_console.exe* Godot binary: the GUI-subsystem
 #   godot.exe detaches from the console on Windows, breaking output capture
 #   and exit codes in scripts.
-# - An editor warm-up pass must precede the headless game run: Godot only
-#   registers .gdextension files into .godot/extension_list.cfg during an
-#   editor filesystem scan; --import alone is not sufficient.
 # - The Godot *editor* binary loads the windows.debug entries of the
 #   .gdextension, so the smoke test exercises the windows-debug preset.
 #   Release builds join with packaging (task 3.5).
+#
+# The Godot-side checks themselves (including the editor warm-up the extension
+# needs before it will load at all) live in scripts/check_godot.ps1, so they
+# can be run locally. Its comment header documents what each phase asserts.
 
 name: CI
 
@@ -101,148 +102,17 @@ jobs:
           if (-not (Test-Path $exe)) { throw "Godot console binary not found at $exe" }
           "GODOT=$((Resolve-Path $exe).Path)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
-      - name: Editor warm-up (registers the GDExtension)
-        timeout-minutes: 10
-        run: |
-          # The first-run headless editor pass can exit nonzero on the bare
-          # runner even when the scan completes (locally it exits 0). Its exit
-          # code is not the meaningful signal, so it is printed but ignored;
-          # this step's contract is its postcondition -- the extension is
-          # registered in .godot/extension_list.cfg. The smoke test below is
-          # the strict gate.
-          & $env:GODOT --headless --editor --path demo --quit 2>&1 | Tee-Object -FilePath warmup.log
-          Write-Host "godot editor exit code: $LASTEXITCODE (ignored; checking postcondition)"
-          if (-not (Test-Path "demo/.godot/extension_list.cfg")) {
-            Get-Content warmup.log
-            throw "Warm-up did not register the extension (demo/.godot/extension_list.cfg missing)"
-          }
-          exit 0
-
-      - name: Smoke test — open stage, print prim tree
-        timeout-minutes: 5
-        run: |
-          & $env:GODOT --headless --path demo 2>&1 | Tee-Object -FilePath smoke.log
-          if ($LASTEXITCODE -ne 0) { throw "Smoke test exited with code $LASTEXITCODE" }
-          foreach ($needle in @(
-            "Registered 30 USD plugins",
-            "/Root/Child/Cube (Mesh)",
-            "godot-usd-bridge: pong",
-            "Imported root: smoke_usda (1 children)"
-          )) {
-            if (-not (Select-String -Path smoke.log -SimpleMatch $needle -Quiet)) {
-              throw "Expected output missing from smoke.log: '$needle'"
-            }
-          }
-
-      # Xform + mesh import (tasks 1.2, 1.3): run the dump tool over the
-      # fixtures and match lines that encode specific importer behaviours. Each
-      # expected line is chosen to fail if a known bug class regresses — see the
-      # fixtures' own doc metadata for what each one detects. GUT (task 1.8)
-      # will replace these greps with real assertions; until then this is the
-      # only automated guard on the translation core's engine-side output.
+      # Godot-side verification: extension load, the demo smoke test, the
+      # fixture dumps, and the missing-resources failure path. The logic and
+      # the expected output live in the script rather than in this file, so
+      # the same checks can be run locally before pushing:
       #
-      # Two fixtures deliberately produce diagnostics: degenerate_mesh logs a
-      # WARNING and malformed_mesh an ERROR. Both still exit 0 — the assertion
-      # is that the message appears AND the node survives without a mesh.
-      - name: Xform + mesh import — dump fixtures and check node trees
-        timeout-minutes: 5
-        run: |
-          $expected = [ordered]@{
-            "nested_xforms" = @(
-              # Synthetic stage-root node above the prim nodes.
-              "- nested_xforms_usda  path=/ type=",
-              # LOCAL transforms, not world: world-space would put Child at (10, 5, 0).
-              "- Child  path=/Root/Child type=Xform origin=(0.0000, 5.0000, 0.0000) scale=(2.0000, 2.0000, 2.0000)",
-              "- Leaf  path=/Root/Child/Leaf type=Xform origin=(0.0000, 0.0000, 0.0000)",
-              "euler_deg=(-0.0000, 90.0000, 0.0000)",
-              "nodes: 4"
-            )
-            "reset_xform_stack" = @(
-              # The root correction lives on the synthetic root, so prim nodes
-              # keep their USD-authored local transforms unmodified.
-              "- reset_xform_stack_usda  path=/ type= origin=(0.0000, 0.0000, 0.0000) scale=(0.0100, 0.0100, 0.0100)",
-              "- Root  path=/Root type=Xform origin=(10.0000, 0.0000, 0.0000) scale=(1.0000, 1.0000, 1.0000)",
-              # A top-level node ignores ancestors, so it must pre-compose the
-              # correction itself, or Detached lands at z=5 (100x too large).
-              "- Detached  path=/Root/Detached type=Xform origin=(0.0000, 0.0000, 0.0500) scale=(0.0100, 0.0100, 0.0100) euler_deg=(-0.0000, 0.0000, 0.0000) top_level=true",
-              "nodes: 4"
-            )
-            "no_default_prim" = @(
-              # No defaultPrim to fall back from, and multiple top-level prims:
-              # all of them must survive the import.
-              "- no_default_prim_usda  path=/ type=",
-              "- First  path=/First",
-              "- SecondChild  path=/Second/SecondChild",
-              "nodes: 4"
-            )
-            "inactive_prims" = @(
-              # Default predicate filtering: inactive / abstract / undefined
-              # prims are excluded. Unfiltered traversal would give 6 nodes.
-              "- Visible  path=/Root/Visible",
-              "nodes: 3"
-            )
-            "quad_mesh" = @(
-              # Fan triangulation of a single quad: 4 corners -> 2 triangles.
-              "mesh='Quad' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
-              "aabb_pos=(-1.0000, 0.0000, -1.0000) aabb_size=(2.0000, 0.0000, 2.0000)",
-              "nodes: 3"
-            )
-            "shared_edge_quads" = @(
-              # Non-identity faceVertexIndices: corner offsets and point indices
-              # diverge from entry 6 on, so this catches conflating the two.
-              # Corner offsets would be [.. 4,5,6, 4,6,7]; point indices differ.
-              "mesh='SharedEdgeQuads' surfaces=1 surf0[verts=6 indices=12 tris=4] idx=[0, 1, 2, 0, 2, 3, 3, 2, 4, 3, 4, 5]",
-              "aabb_pos=(-2.0000, 0.0000, -1.0000) aabb_size=(4.0000, 0.0000, 2.0000)",
-              "nodes: 3"
-            )
-            "degenerate_mesh" = @(
-              # Valid but triangle-less: no surface is added, and it is a
-              # WARNING (legal USD) rather than an error.
-              "WARNING: USD mesh has no geometry: /Root/AllDegenerate",
-              "- AllDegenerate  path=/Root/AllDegenerate type=Mesh",
-              "mesh=<none>",
-              "nodes: 3"
-            )
-            "malformed_mesh" = @(
-              # Out-of-range point index: conversion fails loudly, but the node
-              # is still created so the prim keeps its place in the hierarchy.
-              "ERROR: Failed to convert USD mesh to Godot mesh: /Root/BadIndices",
-              "- BadIndices  path=/Root/BadIndices type=Mesh",
-              "mesh=<none>",
-              "nodes: 3"
-            )
-          }
-
-          foreach ($fixture in $expected.Keys) {
-            $usd = (Resolve-Path "tests/fixtures/$fixture.usda").Path
-            $log = "dump-$fixture.log"
-            Write-Host "== $fixture =="
-            & $env:GODOT --headless --path demo -s tools/dump_stage.gd -- "$usd" 2>&1 |
-              Tee-Object -FilePath $log
-            if ($LASTEXITCODE -ne 0) { throw "dump_stage.gd failed for $fixture (exit $LASTEXITCODE)" }
-            foreach ($needle in $expected[$fixture]) {
-              if (-not (Select-String -Path $log -SimpleMatch $needle -Quiet)) {
-                throw "$fixture : expected line not found: '$needle'"
-              }
-            }
-          }
-          exit 0
-
-      # The 0.5 "landmine" integration test: a broken install (missing usd/
-      # resource tree) must fail loudly with a nonzero exit — never silently,
-      # and never by crashing.
-      - name: Negative test — missing USD resources must fail loudly
-        timeout-minutes: 5
-        run: |
-          Rename-Item demo/addons/godot-usd-bridge/usd usd_disabled
-          & $env:GODOT --headless --path demo 2>&1 | Tee-Object -FilePath negative.log
-          $code = $LASTEXITCODE
-          Rename-Item demo/addons/godot-usd-bridge/usd_disabled usd
-          if ($code -eq 0) { throw "Negative test unexpectedly passed (exit 0) - registration failure went undetected" }
-          if (-not (Select-String -Path negative.log -SimpleMatch "Failed to register plugins" -Quiet)) {
-            throw "Expected registration error message missing from negative.log"
-          }
-          # Success path: Godot deliberately exited nonzero above, and the
-          # runner's pwsh wrapper propagates the last native exit code unless
-          # we end with an explicit success.
-          exit 0
+      #     pwsh scripts/check_godot.ps1
+      #
+      # The script reads $env:GODOT, set by the download step above. See its
+      # comment header for what each phase asserts; see each fixture's doc
+      # metadata for the bug class it detects. GUT (task 1.8) is expected to
+      # replace the fixture phase with real in-engine assertions.
+      - name: Godot-side checks (extension, import, failure path)
+        timeout-minutes: 15
+        run: pwsh scripts/check_godot.ps1
