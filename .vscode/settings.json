@@ -10,6 +10,15 @@
 	// (the cpptools extension can stay installed for debugging).
 	"C_Cpp.intelliSenseEngine": "disabled",
 
+	// Format C++ on save using the repo's .clang-format, via clangd. Keeps
+	// formatting in the same commit as the change that caused it, and means
+	// scripts/format.ps1 is only needed for bulk passes. CI enforces the same
+	// config with `scripts/format.ps1 -Check`.
+	"editor.formatOnSave": true,
+	"[cpp]": {
+		"editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
+	},
+
 	// clangd reads the compile DB via the committed .clangd file. query-driver
 	// lets it run cl.exe to discover MSVC/SDK system headers -- which requires
 	// the MSVC env, so launch VS Code from "Developer PowerShell for VS 2022"

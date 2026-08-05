@@ -77,6 +77,11 @@ jobs:
           path: thirdparty/usd-install
           key: usd-windows-2022-${{ hashFiles('scripts/build_usd.ps1') }}
 
+      # Formatting check runs before the build: it needs nothing compiled, so a
+      # style-only failure surfaces in seconds rather than after the USD build.
+      - name: Check formatting
+        run: pwsh scripts/format.ps1 -Check
+
       - name: Configure extension (windows-debug preset)
         run: cmake --preset windows-debug
 
