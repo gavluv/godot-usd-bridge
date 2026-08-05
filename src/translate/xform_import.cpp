@@ -22,7 +22,8 @@ namespace godot_usd::translate {
 static const char *prim_path_md_key = "usd_prim_path";
 static const char *prim_type_name_md_key = "usd_type_name";
 
-static godot::Node3D *import_prim(const PXR_NS::UsdPrim &p_prim, PXR_NS::UsdGeomXformCache &p_xform_cache, const godot::Transform3D &p_root_transform) {
+static godot::Node3D *import_prim(const PXR_NS::UsdPrim &p_prim, PXR_NS::UsdGeomXformCache &p_xform_cache,
+		const godot::Transform3D &p_root_transform) {
 	if (!p_prim.IsValid()) {
 		ERR_PRINT("Invalid prim");
 		return nullptr;
@@ -32,8 +33,7 @@ static godot::Node3D *import_prim(const PXR_NS::UsdPrim &p_prim, PXR_NS::UsdGeom
 
 	if (p_prim.IsA<PXR_NS::UsdGeomMesh>()) {
 		node = import_mesh(PXR_NS::UsdGeomMesh(p_prim));
-	}
-	else {
+	} else {
 		node = memnew(godot::Node3D);
 	}
 
@@ -46,8 +46,7 @@ static godot::Node3D *import_prim(const PXR_NS::UsdPrim &p_prim, PXR_NS::UsdGeom
 		// apply the root transformation (upAxis, metersPerUnit) to this node's top-level transform
 		node->set_transform(p_root_transform * transform);
 		node->set_as_top_level(true);
-	}
-	else {
+	} else {
 		node->set_transform(transform);
 	}
 

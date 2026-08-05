@@ -1,0 +1,46 @@
+# Formatting for godot-usd-bridge C++ sources.
+#
+# Mirrors godot-cpp's own .clang-format (LLVM base, tabs) so hand-written code
+# in src/ and tests/ matches the bindings it sits next to.
+---
+Language: Cpp
+BasedOnStyle: LLVM
+
+# Match godot-cpp (extern/godot-cpp/.clang-format).
+UseTab: Always
+IndentWidth: 4
+TabWidth: 4
+ConstructorInitializerIndentWidth: 8
+ContinuationIndentWidth: 8
+
+# -4 puts `public:` flush with the class keyword, as godot-cpp does. LLVM's
+# default of -2 is not expressible as a tab, so clang-format emits two literal
+# spaces and the file ends up mixing tabs and spaces.
+AccessModifierOffset: -4
+
+# Leave includes exactly as written. Ordering carries no build significance
+# (platform_fixup.h handles the windows.h collisions), so reordering them would
+# be churn without benefit, and the grouping is hand-arranged for readability.
+SortIncludes: Never
+IncludeBlocks: Preserve
+
+# Godot/LLVM brace and spacing conventions: `if (cond) {` ... `} else {`.
+BreakBeforeBraces: Attach
+SpaceBeforeParens: ControlStatements
+
+# Fixed continuation indent rather than aligning to the open paren. Paren
+# alignment mixes tabs with spaces and reflows every continuation line when a
+# function is renamed, both of which are worse in a tab-indented codebase.
+AlignAfterOpenBracket: DontAlign
+
+# USD's namespaced template code runs long; 120 keeps signatures such as
+# to_mesh_data(const VtArray<int> &, const VtArray<int> &, ...) on fewer lines
+# than LLVM's default 80 without letting them sprawl.
+ColumnLimit: 120
+
+# Godot style writes `Node3D *node`, not `Node3D* node`.
+PointerAlignment: Right
+ReferenceAlignment: Right
+
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1

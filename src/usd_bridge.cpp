@@ -20,9 +20,7 @@ void UsdBridge::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("import_stage", "path"), &UsdBridge::import_stage);
 }
 
-String UsdBridge::ping() const {
-	return "godot-usd-bridge: pong";
-}
+String UsdBridge::ping() const { return "godot-usd-bridge: pong"; }
 
 bool UsdBridge::_are_plugins_registered() const {
 	return PXR_NS::PlugRegistry::GetInstance().GetPluginWithName("usd") != nullptr;

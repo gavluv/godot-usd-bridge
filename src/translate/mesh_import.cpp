@@ -42,15 +42,14 @@ godot::MeshInstance3D *import_mesh(const PXR_NS::UsdGeomMesh &p_usd_mesh) {
 	if (mesh_data.is_valid) {
 		if (mesh_data.triangles.empty()) {
 			WARN_PRINT("USD mesh has no geometry: " + godot::String(p_usd_mesh.GetPrim().GetPath().GetText()));
-		}
-		else {
+		} else {
 			auto mesh = godot_mesh(mesh_data);
 			mesh->set_name(godot::String(p_usd_mesh.GetPrim().GetName().GetText()));
 			mesh_instance->set_mesh(mesh);
 		}
-	}
-	else {
-		ERR_PRINT("Failed to convert USD mesh to Godot mesh: " + godot::String(p_usd_mesh.GetPrim().GetPath().GetText()));
+	} else {
+		ERR_PRINT(
+				"Failed to convert USD mesh to Godot mesh: " + godot::String(p_usd_mesh.GetPrim().GetPath().GetText()));
 	}
 
 	return mesh_instance;

@@ -16,7 +16,8 @@
 using namespace godot;
 
 void initialize_godot_usd_module(ModuleInitializationLevel p_level) {
-	// Must register plugins via PlugRegistry before any USD calls. SCENE initialization timing ensures that plugins are registered before any scripts are run.
+	// Must register plugins via PlugRegistry before any USD calls. SCENE initialization timing ensures that plugins are
+	// registered before any scripts are run.
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 		return;
 	}
@@ -25,7 +26,7 @@ void initialize_godot_usd_module(ModuleInitializationLevel p_level) {
 
 	UtilityFunctions::print_verbose(log_prefix + "Initializing godot-usd-bridge module");
 
-	PXR_NS::PlugRegistry& plug_registry = PXR_NS::PlugRegistry::GetInstance();
+	PXR_NS::PlugRegistry &plug_registry = PXR_NS::PlugRegistry::GetInstance();
 
 	if (plug_registry.GetAllPlugins().empty()) {
 		String library_path;
@@ -34,13 +35,15 @@ void initialize_godot_usd_module(ModuleInitializationLevel p_level) {
 
 		String resources_path = library_path.get_base_dir().get_base_dir().path_join("usd");
 		UtilityFunctions::print_verbose(log_prefix + "USD resources path: " + resources_path);
-		
-		PXR_NS::PlugPluginPtrVector register_plugins_result = plug_registry.RegisterPlugins(resources_path.utf8().get_data());
+
+		PXR_NS::PlugPluginPtrVector register_plugins_result =
+				plug_registry.RegisterPlugins(resources_path.utf8().get_data());
 
 		if (register_plugins_result.empty()) {
 			ERR_PRINT(log_prefix + "Failed to register plugins at " + resources_path);
 		} else {
-			UtilityFunctions::print(log_prefix + "Registered " + String::num_uint64(register_plugins_result.size()) + " USD plugins");
+			UtilityFunctions::print(
+					log_prefix + "Registered " + String::num_uint64(register_plugins_result.size()) + " USD plugins");
 		}
 	} else {
 		// Assume any plugins present in the registry are ours; breaks if a user sets PXR_PLUGINPATH_NAME globally.
@@ -60,10 +63,8 @@ void uninitialize_godot_usd_module(ModuleInitializationLevel p_level) {
 extern "C" {
 // GDExtension entry point. The symbol name here must match `entry_symbol` in
 // addons/godot-usd-bridge/godot-usd-bridge.gdextension.
-GDExtensionBool GDE_EXPORT godot_usd_library_init(
-		GDExtensionInterfaceGetProcAddress p_get_proc_address,
-		GDExtensionClassLibraryPtr p_library,
-		GDExtensionInitialization *r_initialization) {
+GDExtensionBool GDE_EXPORT godot_usd_library_init(GDExtensionInterfaceGetProcAddress p_get_proc_address,
+		GDExtensionClassLibraryPtr p_library, GDExtensionInitialization *r_initialization) {
 	godot::GDExtensionBinding::InitObject init_obj(p_get_proc_address, p_library, r_initialization);
 
 	init_obj.register_initializer(initialize_godot_usd_module);
