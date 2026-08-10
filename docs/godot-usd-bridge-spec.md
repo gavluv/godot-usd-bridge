@@ -83,7 +83,7 @@ godot-usd-bridge/
 ├── thirdparty/usd-install/       # gitignored build output
 ├── addons/godot-usd-bridge/      # distributable: .gdextension, dlls, usd/ resources
 ├── demo/                         # Godot test project + GUT tests + fixtures
-├── docs/adr/                     # ADR-001 (OpenUSD over tinyusdz), ADR-002 (no Docker), ADR-003 (oneTBB over classic Intel TBB), ADR-004 (godot-cpp v10/master + api_version), ...
+├── docs/adr/                     # ADR-001 (OpenUSD over tinyusdz), ADR-002 (no Docker), ADR-003 (oneTBB over classic Intel TBB), ADR-004 (godot-cpp v10/master + api_version), ADR-005 (doctest), ADR-006 (primvar vertex splitting), ...
 └── CMakeLists.txt + CMakePresets.json
 ```
 
@@ -143,11 +143,11 @@ Sizing: **S** ≤ half day · **M** 1–2 days · **L** 3+ days. Order within a 
 | 1.1 | Conventions module: read `metersPerUnit` + `upAxis`, produce root correction transform; fixture tests (Y-up cm stage, Z-up m stage) | S |
 | 1.2 | Xform import: traversal with `UsdGeomXformCache`; `Xform`/`Scope` → `Node3D`; node-name sanitization; prim path in metadata | M |
 | 1.3 | Mesh extraction: `points`, `faceVertexCounts`/`faceVertexIndices`; fan triangulation (document convex assumption; ear-clip later if assets demand it) | M |
-| 1.4 | Primvar engine: normals (authored attr or primvar) and `st` UVs across `vertex` / `faceVarying` / `uniform` / `constant` interpolations; indexed primvars via `ComputeFlattened()`; **vertex splitting for faceVarying** | **L** — the meat |
+| 1.4 | Primvar engine: normals (authored attr or primvar) and `st` UVs across `vertex` / `varying` / `faceVarying` / `uniform` / `constant` interpolations; indexed primvars via `ComputeFlattened()`; **vertex splitting for faceVarying** | **L** — the meat |
 | 1.5 | Winding & orientation: CCW→CW index flip; honor `orientation = leftHanded` | S |
 | 1.6 | Purpose & visibility filtering (skip `guide` + invisible; import option later) | S |
-| 1.7 | `ArrayMesh` assembly + `MeshInstance3D` wiring; first Kitchen Set load | M |
-| 1.8 | Test corpus + GUT goldens: n-gon cube, faceVarying-UV quad, Z-up stage, multi-mesh hierarchy; assert vertex/index counts and AABBs | M |
+| 1.7 | `ArrayMesh` assembly + `MeshInstance3D` wiring; first Kitchen Set load. *(Two task 1.4 deferrals surface here: absent normals are omitted rather than synthesized — decide whether to generate them if Kitchen Set shades badly; and measure how common unreferenced points actually are, since the vertex-compaction pass of ADR-006 exists for them.)* | M |
+| 1.8 | GUT goldens over the fixture corpus; add the Z-up stage and multi-mesh hierarchy cases. *(The n-gon and primvar/vertex-split fixtures are built inline with tasks 1.3–1.4 and covered by doctest, so what remains here is the in-engine layer over them: vertex/index counts and AABBs asserted through a loaded scene.)* | M |
 | 1.9 | Error handling: Tf error marks → Godot error macros; malformed files fail gracefully, never crash the editor | M |
 
 ### v0.2 — Materials & Subsets
@@ -155,7 +155,7 @@ Sizing: **S** ≤ half day · **M** 1–2 days · **L** 3+ days. Order within a 
 |---|---|---|
 | 2.1 | Material resolution: `UsdShadeMaterialBindingAPI` bound material → locate `UsdPreviewSurface` shader; read constant inputs | M |
 | 2.2 | Texture path: `UsdUVTexture` → Ar-resolved file → `ImageTexture`; sRGB (albedo/emissive) vs linear (normal/roughness/metallic); wrap modes | **L** |
-| 2.3 | `GeomSubsets` (materialBind family) → multiple ArrayMesh surfaces incl. remainder subset | M |
+| 2.3 | `GeomSubsets` (materialBind family) → multiple ArrayMesh surfaces incl. remainder subset. *(Expect to restructure `MeshData` here: subsets partition faces, so each surface wants its own vertex buffer and dedup map over one shared read of the topology and primvars. Task 1.4 kept a single flat struct rather than a topology/surface pair on the grounds that its doctest suite makes this refactor cheap once it's actually needed.)* | M |
 | 2.4 | `StandardMaterial3D` mapping: opacity/alpha modes (`opacityThreshold` → scissor), `doubleSided` → cull off | M |
 | 2.5 | Real-asset validation pass (USD-WG assets, NVIDIA samples); fix fallout | M |
 | 2.6 | *Stretch:* `.usdz` read — textures from package via buffer loading | M |
