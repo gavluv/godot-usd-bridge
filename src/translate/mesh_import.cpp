@@ -15,12 +15,12 @@ godot::Ref<godot::ArrayMesh> godot_mesh(const MeshData &p_mesh_data) {
 	auto arrays = godot::Array();
 	arrays.resize(godot::Mesh::ARRAY_MAX);
 
-	auto points_array = godot::PackedVector3Array();
-	points_array.resize(p_mesh_data.points.size());
-	for (size_t i = 0; i < p_mesh_data.points.size(); ++i) {
-		points_array.set(i, p_mesh_data.points[i]);
+	auto positions_array = godot::PackedVector3Array();
+	positions_array.resize(p_mesh_data.positions.size());
+	for (size_t i = 0; i < p_mesh_data.positions.size(); ++i) {
+		positions_array.set(i, p_mesh_data.positions[i]);
 	}
-	arrays[godot::Mesh::ARRAY_VERTEX] = points_array;
+	arrays[godot::Mesh::ARRAY_VERTEX] = positions_array;
 
 	auto triangles_array = godot::PackedInt32Array();
 	triangles_array.resize(p_mesh_data.triangles.size());

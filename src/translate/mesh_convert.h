@@ -13,7 +13,7 @@ namespace godot_usd::translate {
 
 struct MeshData {
 	bool is_valid = false;
-	std::vector<godot::Vector3> points;
+	std::vector<godot::Vector3> positions;
 	std::vector<int32_t> triangles;
 };
 

@@ -79,11 +79,11 @@ TEST_CASE("mesh_convert: quad_mesh.usda converts correctly") {
 	auto mesh_data = godot_usd::translate::to_mesh_data(usd_mesh);
 	CHECK(mesh_data.is_valid);
 	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3});
-	CHECK(mesh_data.points.size() == 4);
-	CHECK(mesh_data.points[0] == godot::Vector3(-1, 0, -1));
-	CHECK(mesh_data.points[1] == godot::Vector3(-1, 0, 1));
-	CHECK(mesh_data.points[2] == godot::Vector3(1, 0, 1));
-	CHECK(mesh_data.points[3] == godot::Vector3(1, 0, -1));
+	CHECK(mesh_data.positions.size() == 4);
+	CHECK(mesh_data.positions[0] == godot::Vector3(-1, 0, -1));
+	CHECK(mesh_data.positions[1] == godot::Vector3(-1, 0, 1));
+	CHECK(mesh_data.positions[2] == godot::Vector3(1, 0, 1));
+	CHECK(mesh_data.positions[3] == godot::Vector3(1, 0, -1));
 }
 
 TEST_CASE("mesh_convert: map_corners_to_points non-identity mapping with differing array sizes maps correctly") {
@@ -128,11 +128,11 @@ TEST_CASE("mesh_convert: shared_edge_quads.usda converts correctly") {
 	auto mesh_data = godot_usd::translate::to_mesh_data(usd_mesh);
 	CHECK(mesh_data.is_valid);
 	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3, 3, 2, 4, 3, 4, 5});
-	CHECK(mesh_data.points.size() == 6);
-	CHECK(mesh_data.points[0] == godot::Vector3(-2, 0, -1));
-	CHECK(mesh_data.points[1] == godot::Vector3(-2, 0, 1));
-	CHECK(mesh_data.points[2] == godot::Vector3(0, 0, 1));
-	CHECK(mesh_data.points[3] == godot::Vector3(0, 0, -1));
-	CHECK(mesh_data.points[4] == godot::Vector3(2, 0, 1));
-	CHECK(mesh_data.points[5] == godot::Vector3(2, 0, -1));
+	CHECK(mesh_data.positions.size() == 6);
+	CHECK(mesh_data.positions[0] == godot::Vector3(-2, 0, -1));
+	CHECK(mesh_data.positions[1] == godot::Vector3(-2, 0, 1));
+	CHECK(mesh_data.positions[2] == godot::Vector3(0, 0, 1));
+	CHECK(mesh_data.positions[3] == godot::Vector3(0, 0, -1));
+	CHECK(mesh_data.positions[4] == godot::Vector3(2, 0, 1));
+	CHECK(mesh_data.positions[5] == godot::Vector3(2, 0, -1));
 }

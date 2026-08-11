@@ -45,13 +45,13 @@ MeshData to_mesh_data(const PXR_NS::VtArray<int> &p_face_vertex_counts,
 		return mesh_data;
 	}
 
-	auto points = std::vector<godot::Vector3>(point_count);
+	auto positions = std::vector<godot::Vector3>(point_count);
 
 	for (size_t i = 0; i < p_points.size(); i++) {
-		points[i] = godot::Vector3(p_points[i][0], p_points[i][1], p_points[i][2]);
+		positions[i] = godot::Vector3(p_points[i][0], p_points[i][1], p_points[i][2]);
 	}
 
-	mesh_data.points = std::move(points);
+	mesh_data.positions = std::move(positions);
 	mesh_data.triangles = std::move(triangles);
 	mesh_data.is_valid = true;
 
