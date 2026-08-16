@@ -11,13 +11,39 @@
 
 namespace godot_usd::translate {
 
-struct MeshData {
-	bool is_valid = false;
-	std::vector<godot::Vector3> positions;
-	std::vector<int32_t> triangles;
+// Mesh conversion sets error_reason in the pure layer, to be reported on the engine side; can't use the Godot-bridged
+// ERR_PRINT or WARN_PRINT macros without crashing the test exe.
+
+// An error is terminal and singular, so it's a scoped discriminant. MeshData.error_reason defaults to UNSET for
+// fail-closed defaulting; error_reason must be explicitly set to NONE or the object is invalid.
+enum class MeshConvertError {
+	NONE = 0,
+	UNSET = 1,
+	INVALID_SCHEMA_OBJ,
+	INVALID_PRIM,
+	PRIM_NOT_A_MESH,
+	FAILED_TO_GET_FACE_VERTEX_COUNTS,
+	FAILED_TO_GET_FACE_VERTEX_INDICES,
+	FAILED_TO_GET_POINTS,
+	NEGATIVE_FACE_COUNT,
+	CORNER_INDEX_OUT_OF_RANGE,
+	POINT_INDEX_OUT_OF_RANGE,
 };
 
-bool map_corners_to_points(
+struct MeshData {
+	MeshConvertError error_reason = MeshConvertError::UNSET;
+	bool is_valid() const { return error_reason == MeshConvertError::NONE; }
+	std::vector<godot::Vector3> positions;
+	std::vector<int32_t> triangles;
+
+	static MeshData from_error(MeshConvertError p_error_reason) {
+		MeshData data;
+		data.error_reason = p_error_reason;
+		return data;
+	}
+};
+
+MeshConvertError map_corners_to_points(
 		std::vector<int32_t> &r_tri_indices, const PXR_NS::VtArray<int> &p_face_vertex_indices, size_t p_point_count);
 
 MeshData to_mesh_data(const PXR_NS::VtArray<int> &p_face_vertex_counts,

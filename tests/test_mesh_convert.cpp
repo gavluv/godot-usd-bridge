@@ -77,7 +77,7 @@ TEST_CASE("mesh_convert: quad_mesh.usda converts correctly") {
 	auto usd_mesh = PXR_NS::UsdGeomMesh(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/Quad")));
 	REQUIRE(static_cast<bool>(usd_mesh));
 	auto mesh_data = godot_usd::translate::to_mesh_data(usd_mesh);
-	CHECK(mesh_data.is_valid);
+	CHECK(mesh_data.is_valid());
 	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3});
 	CHECK(mesh_data.positions.size() == 4);
 	CHECK(mesh_data.positions[0] == godot::Vector3(-1, 0, -1));
@@ -89,35 +89,38 @@ TEST_CASE("mesh_convert: quad_mesh.usda converts correctly") {
 TEST_CASE("mesh_convert: map_corners_to_points non-identity mapping with differing array sizes maps correctly") {
 	auto tri_indices = std::vector<int32_t>{0, 1, 2, 0, 2, 3};
 	auto face_vertex_indices = PXR_NS::VtArray<int>{10, 11, 12, 13};
-	CHECK(godot_usd::translate::map_corners_to_points(tri_indices, face_vertex_indices, 20));
+	CHECK(godot_usd::translate::map_corners_to_points(tri_indices, face_vertex_indices, 20) ==
+			godot_usd::translate::MeshConvertError::NONE);
 	check_int32_vectors_equal(tri_indices, std::vector<int32_t>{10, 11, 12, 10, 12, 13});
 }
 
 TEST_CASE("mesh_convert: map_corners_to_points empty triangles with non-empty indices succeeds no-op") {
 	auto tri_indices = std::vector<int32_t>();
 	auto face_vertex_indices = PXR_NS::VtArray<int>(6);
-	CHECK(godot_usd::translate::map_corners_to_points(
-			tri_indices, face_vertex_indices, std::numeric_limits<int>::max()));
+	CHECK(godot_usd::translate::map_corners_to_points(tri_indices, face_vertex_indices,
+				  std::numeric_limits<int>::max()) == godot_usd::translate::MeshConvertError::NONE);
 }
 
 TEST_CASE("mesh_convert: map_corners_to_points corner offset past the end fails") {
 	auto tri_indices = std::vector<int32_t>{0, 1, 2};
 	auto face_vertex_indices = PXR_NS::VtArray<int>(2);
-	CHECK(!godot_usd::translate::map_corners_to_points(
-			tri_indices, face_vertex_indices, std::numeric_limits<int>::max()));
+	CHECK(godot_usd::translate::map_corners_to_points(
+				  tri_indices, face_vertex_indices, std::numeric_limits<int>::max()) ==
+			godot_usd::translate::MeshConvertError::CORNER_INDEX_OUT_OF_RANGE);
 }
 
 TEST_CASE("mesh_convert: map_corners_to_points point index out of range fails") {
 	auto tri_indices = std::vector<int32_t>{0};
 	auto face_vertex_indices = PXR_NS::VtArray<int>(1, 9);
-	CHECK(!godot_usd::translate::map_corners_to_points(tri_indices, face_vertex_indices, 4));
+	CHECK(godot_usd::translate::map_corners_to_points(tri_indices, face_vertex_indices, 4) ==
+			godot_usd::translate::MeshConvertError::POINT_INDEX_OUT_OF_RANGE);
 }
 
 TEST_CASE("mesh_convert: map_corners_to_points negative point index fails") {
 	auto tri_indices = std::vector<int32_t>{0};
 	auto face_vertex_indices = PXR_NS::VtArray<int>(1, -1);
-	CHECK(!godot_usd::translate::map_corners_to_points(
-			tri_indices, face_vertex_indices, std::numeric_limits<int>::max()));
+	CHECK(godot_usd::translate::map_corners_to_points(tri_indices, face_vertex_indices,
+				  std::numeric_limits<int>::max()) == godot_usd::translate::MeshConvertError::POINT_INDEX_OUT_OF_RANGE);
 }
 
 TEST_CASE("mesh_convert: shared_edge_quads.usda converts correctly") {
@@ -126,7 +129,7 @@ TEST_CASE("mesh_convert: shared_edge_quads.usda converts correctly") {
 	auto usd_mesh = PXR_NS::UsdGeomMesh(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/SharedEdgeQuads")));
 	REQUIRE(static_cast<bool>(usd_mesh));
 	auto mesh_data = godot_usd::translate::to_mesh_data(usd_mesh);
-	CHECK(mesh_data.is_valid);
+	CHECK(mesh_data.is_valid());
 	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3, 3, 2, 4, 3, 4, 5});
 	CHECK(mesh_data.positions.size() == 6);
 	CHECK(mesh_data.positions[0] == godot::Vector3(-2, 0, -1));

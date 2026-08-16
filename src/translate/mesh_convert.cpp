@@ -10,7 +10,7 @@
 
 namespace godot_usd::translate {
 
-bool map_corners_to_points(
+MeshConvertError map_corners_to_points(
 		std::vector<int32_t> &r_tri_indices, const PXR_NS::VtArray<int> &p_face_vertex_indices, size_t p_point_count) {
 	const int64_t index_count = static_cast<int64_t>(p_face_vertex_indices.size());
 	const int64_t point_count = static_cast<int64_t>(p_point_count);
@@ -19,16 +19,16 @@ bool map_corners_to_points(
 
 	for (size_t i = 0; i < r_tri_indices.size(); ++i) {
 		if (r_tri_indices[i] >= index_count) {
-			return false;
+			return MeshConvertError::CORNER_INDEX_OUT_OF_RANGE;
 		}
 		const int point_index = p_face_vertex_indices[r_tri_indices[i]];
 		if (point_index < 0 || point_index >= point_count) {
-			return false;
+			return MeshConvertError::POINT_INDEX_OUT_OF_RANGE;
 		}
 		r_tri_indices[i] = point_index;
 	}
 
-	return true;
+	return MeshConvertError::NONE;
 }
 
 MeshData to_mesh_data(const PXR_NS::VtArray<int> &p_face_vertex_counts,
@@ -39,9 +39,9 @@ MeshData to_mesh_data(const PXR_NS::VtArray<int> &p_face_vertex_counts,
 
 	size_t point_count = p_points.size();
 
-	if (!map_corners_to_points(triangles, p_face_vertex_indices, point_count)) {
-		// silently return mesh_data with is_valid = false when encountering an error;
-		// can't use the Godot-bridged ERR_PRINT here without crashing the test exe
+	mesh_data.error_reason = map_corners_to_points(triangles, p_face_vertex_indices, point_count);
+
+	if (!mesh_data.is_valid()) {
 		return mesh_data;
 	}
 
@@ -53,37 +53,40 @@ MeshData to_mesh_data(const PXR_NS::VtArray<int> &p_face_vertex_counts,
 
 	mesh_data.positions = std::move(positions);
 	mesh_data.triangles = std::move(triangles);
-	mesh_data.is_valid = true;
 
 	return mesh_data;
 }
 
 MeshData to_mesh_data(const PXR_NS::UsdGeomMesh &p_mesh) {
 	if (!static_cast<bool>(p_mesh)) {
-		return MeshData();
+		return MeshData::from_error(MeshConvertError::INVALID_SCHEMA_OBJ);
 	}
 
 	auto face_vertex_counts = PXR_NS::VtArray<int>();
 	if (!p_mesh.GetFaceVertexCountsAttr().Get(&face_vertex_counts)) {
-		return MeshData();
+		return MeshData::from_error(MeshConvertError::FAILED_TO_GET_FACE_VERTEX_COUNTS);
 	}
 
 	auto face_vertex_indices = PXR_NS::VtArray<int>();
 	if (!p_mesh.GetFaceVertexIndicesAttr().Get(&face_vertex_indices)) {
-		return MeshData();
+		return MeshData::from_error(MeshConvertError::FAILED_TO_GET_FACE_VERTEX_INDICES);
 	}
 
 	auto points = PXR_NS::VtArray<PXR_NS::GfVec3f>();
 	if (!p_mesh.GetPointsAttr().Get(&points)) {
-		return MeshData();
+		return MeshData::from_error(MeshConvertError::FAILED_TO_GET_POINTS);
 	}
 
 	return to_mesh_data(face_vertex_counts, face_vertex_indices, points);
 }
 
 MeshData to_mesh_data(const PXR_NS::UsdPrim &p_prim) {
-	if (!p_prim.IsValid() || !p_prim.IsA<PXR_NS::UsdGeomMesh>()) {
-		return MeshData();
+	if (!p_prim.IsValid()) {
+		return MeshData::from_error(MeshConvertError::INVALID_PRIM);
+	}
+
+	if (!p_prim.IsA<PXR_NS::UsdGeomMesh>()) {
+		return MeshData::from_error(MeshConvertError::PRIM_NOT_A_MESH);
 	}
 
 	return to_mesh_data(PXR_NS::UsdGeomMesh(p_prim));
