@@ -11,8 +11,16 @@
 
 namespace godot_usd::translate {
 
-// Mesh conversion sets error_reason in the pure layer, to be reported on the engine side; can't use the Godot-bridged
-// ERR_PRINT or WARN_PRINT macros without crashing the test exe.
+// Mesh conversion captures warnings in MeshData.warn_flags and sets error_reason in the pure layer, to be reported on
+// the engine side; can't use the Godot-bridged ERR_PRINT or WARN_PRINT macros without crashing the test exe.
+
+// Warnings accumulate, so they're an unscoped bitmask, prefixed with MESH_CONVERT_WARN_* because the enumerators land
+// in the enclosing namespace.
+enum MeshConvertWarning {
+	MESH_CONVERT_WARN_NO_GEOMETRY = 1 << 0,
+	MESH_CONVERT_WARN_DEGENERATE_FACES = 1 << 1,
+	MESH_CONVERT_WARN_UNUSED_FACE_INDICES = 1 << 2,
+};
 
 // An error is terminal and singular, so it's a scoped discriminant. MeshData.error_reason defaults to UNSET for
 // fail-closed defaulting; error_reason must be explicitly set to NONE or the object is invalid.
@@ -31,6 +39,7 @@ enum class MeshConvertError {
 };
 
 struct MeshData {
+	uint32_t warn_flags = 0;
 	MeshConvertError error_reason = MeshConvertError::UNSET;
 	bool is_valid() const { return error_reason == MeshConvertError::NONE; }
 	std::vector<godot::Vector3> positions;
@@ -52,6 +61,9 @@ MeshData to_mesh_data(const PXR_NS::VtArray<int> &p_face_vertex_counts,
 MeshData to_mesh_data(const PXR_NS::UsdGeomMesh &p_mesh);
 
 MeshData to_mesh_data(const PXR_NS::UsdPrim &p_prim);
+
+MeshConvertError validate_topology(
+		const PXR_NS::VtArray<int> &p_face_vertex_counts, size_t p_index_count, uint32_t *r_warn_flags = nullptr);
 
 std::vector<int32_t> triangulate(const PXR_NS::VtArray<int> &p_face_vertex_counts);
 

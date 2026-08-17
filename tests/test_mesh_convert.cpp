@@ -60,6 +60,61 @@ TEST_CASE("mesh_convert: triangulate skips degenerate face") {
 	check_int32_vectors_equal(tris, std::vector<int32_t>{0, 1, 2, 0, 2, 3, 6, 7, 8});
 }
 
+TEST_CASE("mesh_convert: validate_topology no error or warnings on valid topology") {
+	auto face_counts = PXR_NS::VtArray<int>(1, 3);
+	uint32_t warn_flags = 0;
+	auto err = godot_usd::translate::validate_topology(face_counts, 3, &warn_flags);
+	CHECK(err == godot_usd::translate::MeshConvertError::NONE);
+	CHECK(warn_flags == 0);
+}
+
+TEST_CASE("mesh_convert: validate_topology warns on degenerate faces") {
+	auto face_counts = PXR_NS::VtArray<int>(1, 2);
+	uint32_t warn_flags = 0;
+	auto err = godot_usd::translate::validate_topology(face_counts, 2, &warn_flags);
+	CHECK(err == godot_usd::translate::MeshConvertError::NONE);
+	CHECK(warn_flags == godot_usd::translate::MESH_CONVERT_WARN_DEGENERATE_FACES);
+}
+
+TEST_CASE("mesh_convert: validate_topology warns on unused face indices") {
+	auto face_counts = PXR_NS::VtArray<int>(1, 3);
+	uint32_t warn_flags = 0;
+	auto err = godot_usd::translate::validate_topology(face_counts, 4, &warn_flags);
+	CHECK(err == godot_usd::translate::MeshConvertError::NONE);
+	CHECK(warn_flags == godot_usd::translate::MESH_CONVERT_WARN_UNUSED_FACE_INDICES);
+}
+
+TEST_CASE("mesh_convert: validate_topology fails on negative face counts") {
+	auto face_counts = PXR_NS::VtArray<int>(1, -1);
+	uint32_t warn_flags = 0;
+	auto err = godot_usd::translate::validate_topology(face_counts, 0, &warn_flags);
+	CHECK(err == godot_usd::translate::MeshConvertError::NEGATIVE_FACE_COUNT);
+	CHECK(warn_flags == 0);
+}
+
+TEST_CASE("mesh_convert: validate_topology fails on corner index out of range") {
+	auto face_counts = PXR_NS::VtArray<int>(1, 3);
+	uint32_t warn_flags = 0;
+	auto err = godot_usd::translate::validate_topology(face_counts, 2, &warn_flags);
+	CHECK(err == godot_usd::translate::MeshConvertError::CORNER_INDEX_OUT_OF_RANGE);
+	CHECK(warn_flags == 0);
+}
+
+TEST_CASE("mesh_convert: validate_topology sets multiple warning flags") {
+	auto face_counts = PXR_NS::VtArray<int>{1, 2, 4};
+	uint32_t warn_flags = 0;
+	auto err = godot_usd::translate::validate_topology(face_counts, 8, &warn_flags);
+	CHECK(err == godot_usd::translate::MeshConvertError::NONE);
+	CHECK((warn_flags & godot_usd::translate::MESH_CONVERT_WARN_DEGENERATE_FACES) != 0);
+	CHECK((warn_flags & godot_usd::translate::MESH_CONVERT_WARN_UNUSED_FACE_INDICES) != 0);
+}
+
+TEST_CASE("mesh_convert: validate_topology with no warn_flags pointer succeeds") {
+	auto face_counts = PXR_NS::VtArray<int>{0, 2, 4};
+	auto err = godot_usd::translate::validate_topology(face_counts, 6);
+	CHECK(err == godot_usd::translate::MeshConvertError::NONE);
+}
+
 TEST_CASE("mesh_convert: quad_mesh.usda triangulates correctly") {
 	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("quad_mesh.usda"));
 	REQUIRE(stage != nullptr);
@@ -78,12 +133,25 @@ TEST_CASE("mesh_convert: quad_mesh.usda converts correctly") {
 	REQUIRE(static_cast<bool>(usd_mesh));
 	auto mesh_data = godot_usd::translate::to_mesh_data(usd_mesh);
 	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == 0);
 	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3});
 	CHECK(mesh_data.positions.size() == 4);
 	CHECK(mesh_data.positions[0] == godot::Vector3(-1, 0, -1));
 	CHECK(mesh_data.positions[1] == godot::Vector3(-1, 0, 1));
 	CHECK(mesh_data.positions[2] == godot::Vector3(1, 0, 1));
 	CHECK(mesh_data.positions[3] == godot::Vector3(1, 0, -1));
+}
+
+TEST_CASE("mesh_convert: truncated_face_indices.usda fails to convert with degenerate faces warning and corner index "
+		  "out of range error") {
+	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("truncated_face_indices.usda"));
+	REQUIRE(stage != nullptr);
+	auto usd_mesh = PXR_NS::UsdGeomMesh(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/TruncatedIndices")));
+	REQUIRE(static_cast<bool>(usd_mesh));
+	auto mesh_data = godot_usd::translate::to_mesh_data(usd_mesh);
+	CHECK(mesh_data.warn_flags == godot_usd::translate::MESH_CONVERT_WARN_DEGENERATE_FACES);
+	CHECK(!mesh_data.is_valid());
+	CHECK(mesh_data.error_reason == godot_usd::translate::MeshConvertError::CORNER_INDEX_OUT_OF_RANGE);
 }
 
 TEST_CASE("mesh_convert: map_corners_to_points non-identity mapping with differing array sizes maps correctly") {
@@ -130,6 +198,7 @@ TEST_CASE("mesh_convert: shared_edge_quads.usda converts correctly") {
 	REQUIRE(static_cast<bool>(usd_mesh));
 	auto mesh_data = godot_usd::translate::to_mesh_data(usd_mesh);
 	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == 0);
 	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3, 3, 2, 4, 3, 4, 5});
 	CHECK(mesh_data.positions.size() == 6);
 	CHECK(mesh_data.positions[0] == godot::Vector3(-2, 0, -1));

@@ -5,24 +5,30 @@
 
     points has 3 entries (valid indices 0..2), but the third corner references
     index 9. Note the topology is otherwise consistent: sum(faceVertexCounts)
-    == 3 == faceVertexIndices.size(), so this gets past the corner-offset bound
-    and is caught by the point-index range check specifically.
+    == 3 == faceVertexIndices.size(), so it passes validate_topology cleanly
+    and is caught by the point-index range check inside map_corners_to_points
+    specifically.
 
     USD itself does not validate index ranges at load time, so this file opens
     and reads back cleanly -- the importer is the only thing standing between it
     and an out-of-range write into Godot's vertex buffer.
 
     Expected:
-      - conversion FAILS (is_valid == false)
+      - conversion FAILS: error_reason == POINT_INDEX_OUT_OF_RANGE, so
+        is_valid() is false
+      - no warnings: the counts are consistent and the single face is not
+        degenerate, so warn_flags == 0
       - the MeshInstance3D is still created, with no mesh (`mesh=<none>`), so
         the prim keeps its place in the hierarchy
-      - an ERROR is logged (contrast degenerate_mesh.usda, which reaches the
-        same node state legitimately and logs a WARNING)
+      - an ERROR is logged, naming the reason (contrast degenerate_mesh.usda,
+        which reaches the same node state legitimately and logs a WARNING)
 
-    The sibling defect -- sum(faceVertexCounts) != faceVertexIndices.size(),
-    which trips the corner-offset bound instead -- is covered by the
-    map_corners_to_points unit tests rather than a fixture, since it needs no
-    file to reproduce."""
+    The sibling defect -- sum(faceVertexCounts) > faceVertexIndices.size() --
+    is caught earlier now, by validate_topology, before any triangulation
+    happens; truncated_face_indices.usda covers it. Because validate_topology
+    guarantees every corner offset lands inside faceVertexIndices, the
+    corner-offset bound inside map_corners_to_points is unreachable from
+    to_mesh_data and survives only for its own unit tests."""
     defaultPrim = "Root"
     metersPerUnit = 1
     upAxis = "Y"

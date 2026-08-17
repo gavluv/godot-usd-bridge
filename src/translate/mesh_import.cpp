@@ -11,6 +11,26 @@
 
 namespace godot_usd::translate {
 
+static godot::String get_warn_flags_string(const uint32_t p_warn_flags) {
+	if (p_warn_flags == 0) {
+		return "";
+	}
+
+	auto warn_parts = godot::PackedStringArray();
+
+	if (p_warn_flags & MESH_CONVERT_WARN_NO_GEOMETRY) {
+		warn_parts.append("no geometry");
+	}
+	if (p_warn_flags & MESH_CONVERT_WARN_DEGENERATE_FACES) {
+		warn_parts.append("degenerate faces");
+	}
+	if (p_warn_flags & MESH_CONVERT_WARN_UNUSED_FACE_INDICES) {
+		warn_parts.append("unused face indices");
+	}
+
+	return godot::String("; ").join(warn_parts);
+}
+
 static godot::String get_error_reason_string(const MeshConvertError p_error_reason) {
 	switch (p_error_reason) {
 	case MeshConvertError::NONE:
@@ -65,12 +85,13 @@ godot::Ref<godot::ArrayMesh> godot_mesh(const MeshData &p_mesh_data) {
 
 godot::MeshInstance3D *import_mesh(const PXR_NS::UsdGeomMesh &p_usd_mesh) {
 	godot::MeshInstance3D *mesh_instance = memnew(godot::MeshInstance3D);
-
 	auto mesh_data = to_mesh_data(p_usd_mesh);
+	if (mesh_data.warn_flags != 0) {
+		WARN_PRINT("USD mesh conversion warnings: " + godot::String(p_usd_mesh.GetPrim().GetPath().GetText()) + " (" +
+				   get_warn_flags_string(mesh_data.warn_flags) + ")");
+	}
 	if (mesh_data.is_valid()) {
-		if (mesh_data.triangles.empty()) {
-			WARN_PRINT("USD mesh has no geometry: " + godot::String(p_usd_mesh.GetPrim().GetPath().GetText()));
-		} else {
+		if (!mesh_data.triangles.empty()) {
 			auto mesh = godot_mesh(mesh_data);
 			mesh->set_name(godot::String(p_usd_mesh.GetPrim().GetName().GetText()));
 			mesh_instance->set_mesh(mesh);

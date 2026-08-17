@@ -35,6 +35,13 @@ MeshData to_mesh_data(const PXR_NS::VtArray<int> &p_face_vertex_counts,
 		const PXR_NS::VtArray<int> &p_face_vertex_indices, const PXR_NS::VtArray<PXR_NS::GfVec3f> &p_points) {
 	auto mesh_data = MeshData();
 
+	mesh_data.error_reason =
+			validate_topology(p_face_vertex_counts, p_face_vertex_indices.size(), &mesh_data.warn_flags);
+
+	if (!mesh_data.is_valid()) {
+		return mesh_data;
+	}
+
 	auto triangles = triangulate(p_face_vertex_counts);
 
 	size_t point_count = p_points.size();
@@ -53,6 +60,10 @@ MeshData to_mesh_data(const PXR_NS::VtArray<int> &p_face_vertex_counts,
 
 	mesh_data.positions = std::move(positions);
 	mesh_data.triangles = std::move(triangles);
+
+	if (mesh_data.triangles.empty()) {
+		mesh_data.warn_flags |= MESH_CONVERT_WARN_NO_GEOMETRY;
+	}
 
 	return mesh_data;
 }
@@ -92,13 +103,60 @@ MeshData to_mesh_data(const PXR_NS::UsdPrim &p_prim) {
 	return to_mesh_data(PXR_NS::UsdGeomMesh(p_prim));
 }
 
+// Topology helper functions to keep triangulate() and validate_topology() in agreement about what a face consumes and
+// produces.
+
+static int get_corners_consumed(int p_face_count) {
+	if (p_face_count < 0) {
+		return 0;
+	}
+	return p_face_count;
+}
+
+static int get_triangles_produced(int p_face_count) {
+	if (p_face_count < 3) {
+		return 0;
+	}
+	return p_face_count - 2;
+}
+
+MeshConvertError validate_topology(
+		const PXR_NS::VtArray<int> &p_face_vertex_counts, size_t p_index_count, uint32_t *r_warn_flags) {
+	size_t face_index_offset = 0;
+
+	for (int face_count : p_face_vertex_counts) {
+		if (face_count < 0) {
+			// A negative face count is invalid topology; the intended index offsets for all subsequent faces are
+			// unrecoverable. Incorrectly guessing at the partition, e.g., by assuming a negative-count face consumes 0
+			// indices, produces a mesh with indices that are all in range but silently wrong, so we fail the whole mesh
+			// rather than skipping the face with a warning.
+			return MeshConvertError::NEGATIVE_FACE_COUNT;
+		}
+		if (get_triangles_produced(face_count) == 0) {
+			if (r_warn_flags) {
+				*r_warn_flags |= MESH_CONVERT_WARN_DEGENERATE_FACES;
+			}
+		}
+
+		face_index_offset += get_corners_consumed(face_count);
+	}
+
+	if (face_index_offset < p_index_count && r_warn_flags) {
+		*r_warn_flags |= MESH_CONVERT_WARN_UNUSED_FACE_INDICES;
+	}
+
+	if (face_index_offset > p_index_count) {
+		return MeshConvertError::CORNER_INDEX_OUT_OF_RANGE;
+	}
+
+	return MeshConvertError::NONE;
+}
+
 std::vector<int32_t> triangulate(const PXR_NS::VtArray<int> &p_face_vertex_counts) {
 	int triangle_count = 0;
 
 	for (int face_count : p_face_vertex_counts) {
-		if (face_count > 2) {
-			triangle_count += face_count - 2;
-		}
+		triangle_count += get_triangles_produced(face_count);
 	}
 
 	auto triangles = std::vector<int32_t>(triangle_count * 3);
@@ -107,8 +165,8 @@ std::vector<int32_t> triangulate(const PXR_NS::VtArray<int> &p_face_vertex_count
 	int tri_index_offset = 0;
 
 	for (int face_count : p_face_vertex_counts) {
-		if (face_count > 2) {
-			int fan_tri_count = face_count - 2;
+		int fan_tri_count = get_triangles_produced(face_count);
+		if (fan_tri_count > 0) {
 			for (int j = 0; j < fan_tri_count; ++j) {
 				triangles[tri_index_offset] = face_index_offset;
 				triangles[tri_index_offset + 1] = face_index_offset + j + 1;
@@ -116,7 +174,8 @@ std::vector<int32_t> triangulate(const PXR_NS::VtArray<int> &p_face_vertex_count
 				tri_index_offset += 3;
 			}
 		}
-		face_index_offset += face_count;
+
+		face_index_offset += get_corners_consumed(face_count);
 	}
 
 	return triangles;

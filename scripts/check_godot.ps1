@@ -65,7 +65,7 @@ $LogDir = Join-Path $RepoRoot "build/check-logs"
 # to describe current behaviour.
 # ---------------------------------------------------------------------------
 $FixtureExpectations = [ordered]@{
-	"nested_xforms"     = @(
+	"nested_xforms"          = @(
 		# Synthetic stage-root node above the prim nodes.
 		"- nested_xforms_usda  path=/ type=",
 		# LOCAL transforms, not world: world space would put Child at (10, 5, 0).
@@ -74,7 +74,7 @@ $FixtureExpectations = [ordered]@{
 		"euler_deg=(-0.0000, 90.0000, 0.0000)",
 		"nodes: 4"
 	)
-	"reset_xform_stack" = @(
+	"reset_xform_stack"      = @(
 		# The root correction lives on the synthetic root, so prim nodes keep
 		# their USD-authored local transforms unmodified.
 		"- reset_xform_stack_usda  path=/ type= origin=(0.0000, 0.0000, 0.0000) scale=(0.0100, 0.0100, 0.0100)",
@@ -84,7 +84,7 @@ $FixtureExpectations = [ordered]@{
 		"- Detached  path=/Root/Detached type=Xform origin=(0.0000, 0.0000, 0.0500) scale=(0.0100, 0.0100, 0.0100) euler_deg=(-0.0000, 0.0000, 0.0000) top_level=true",
 		"nodes: 4"
 	)
-	"no_default_prim"   = @(
+	"no_default_prim"        = @(
 		# No defaultPrim to fall back from, and multiple top-level prims: all of
 		# them must survive the import.
 		"- no_default_prim_usda  path=/ type=",
@@ -92,19 +92,19 @@ $FixtureExpectations = [ordered]@{
 		"- SecondChild  path=/Second/SecondChild",
 		"nodes: 4"
 	)
-	"inactive_prims"    = @(
+	"inactive_prims"         = @(
 		# Default predicate filtering: inactive / abstract / undefined prims are
 		# excluded. Unfiltered traversal would give 6 nodes.
 		"- Visible  path=/Root/Visible",
 		"nodes: 3"
 	)
-	"quad_mesh"         = @(
+	"quad_mesh"              = @(
 		# Fan triangulation of a single quad: 4 corners -> 2 triangles.
 		"mesh='Quad' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
 		"aabb_pos=(-1.0000, 0.0000, -1.0000) aabb_size=(2.0000, 0.0000, 2.0000)",
 		"nodes: 3"
 	)
-	"shared_edge_quads" = @(
+	"shared_edge_quads"      = @(
 		# Non-identity faceVertexIndices: corner offsets and point indices
 		# diverge from entry 6 on, so this catches conflating the two. Corner
 		# offsets would be [.. 4,5,6, 4,6,7]; point indices differ.
@@ -112,19 +112,38 @@ $FixtureExpectations = [ordered]@{
 		"aabb_pos=(-2.0000, 0.0000, -1.0000) aabb_size=(4.0000, 0.0000, 2.0000)",
 		"nodes: 3"
 	)
-	"degenerate_mesh"   = @(
+	"degenerate_mesh"        = @(
 		# Valid but triangle-less: no surface is added, and it is a WARNING
-		# (legal USD) rather than an error.
-		"WARNING: USD mesh has no geometry: /Root/AllDegenerate",
+		# (legal USD) rather than an error. Keep the WARNING: prefix in the
+		# needle -- log level is the only thing separating this fixture from
+		# malformed_mesh, which reaches an identical node state.
+		"WARNING: USD mesh conversion warnings: /Root/AllDegenerate (no geometry; degenerate faces)",
 		"- AllDegenerate  path=/Root/AllDegenerate type=Mesh",
 		"mesh=<none>",
 		"nodes: 3"
 	)
-	"malformed_mesh"    = @(
+	"malformed_mesh"         = @(
 		# Out-of-range point index: conversion fails loudly, but the node is
-		# still created so the prim keeps its place in the hierarchy.
-		"ERROR: Failed to convert USD mesh to Godot mesh: /Root/BadIndices",
+		# still created so the prim keeps its place in the hierarchy. The
+		# parenthesised reason pins WHICH check rejected it -- without it this
+		# needle also matches truncated_face_indices' failure.
+		"ERROR: Failed to convert USD mesh to Godot mesh: /Root/BadIndices (Point index out of range)",
 		"- BadIndices  path=/Root/BadIndices type=Mesh",
+		"mesh=<none>",
+		"nodes: 3"
+	)
+	"truncated_face_indices" = @(
+		# faceVertexCounts declares 5 corners against 4 authored indices. The
+		# degenerate second face means triangulation never emits an offset past
+		# the end, so the per-corner bound in map_corners_to_points stays quiet
+		# -- only validate_topology's sum check rejects this file.
+		#
+		# The only fixture that both warns and fails. Warnings print regardless
+		# of outcome, so a failed conversion still reports what it worked out
+		# on the way down; losing the WARNING line here means that regressed.
+		"WARNING: USD mesh conversion warnings: /Root/TruncatedIndices (degenerate faces)",
+		"ERROR: Failed to convert USD mesh to Godot mesh: /Root/TruncatedIndices (Corner index out of range)",
+		"- TruncatedIndices  path=/Root/TruncatedIndices type=Mesh",
 		"mesh=<none>",
 		"nodes: 3"
 	)
@@ -207,9 +226,11 @@ $failures = @()
 $extensionList = Join-Path $DemoDir ".godot/extension_list.cfg"
 if ($SkipWarmup) {
 	Write-Phase "warm-up (skipped)"
-} elseif ((Test-Path $extensionList) -and (-not $Force)) {
+}
+elseif ((Test-Path $extensionList) -and (-not $Force)) {
 	Write-Phase "warm-up (already registered)"
-} else {
+}
+else {
 	Write-Phase "warm-up"
 	$log = Join-Path $LogDir "warmup.log"
 	# The editor pass can exit nonzero on a bare machine even when the scan
@@ -219,7 +240,8 @@ if ($SkipWarmup) {
 	if (-not (Test-Path $extensionList)) {
 		Get-Content $log
 		$failures += "warm-up did not register the extension (demo/.godot/extension_list.cfg missing)"
-	} else {
+	}
+ else {
 		Write-Host "  extension registered" -ForegroundColor Green
 	}
 }
@@ -230,7 +252,8 @@ $log = Join-Path $LogDir "smoke.log"
 $code = Invoke-Godot -GodotArgs @("--headless", "--path", $DemoDir) -LogPath $log
 if ($code -ne 0) {
 	$failures += "smoke: demo exited with code $code"
-} else {
+}
+else {
 	$missing = @(Get-MissingExpectations -LogPath $log -Expected $SmokeExpectations)
 	foreach ($m in $missing) { $failures += "smoke: expected output missing: '$m'" }
 	if ($missing.Count -eq 0) { Write-Host "  ok" -ForegroundColor Green }
@@ -253,9 +276,10 @@ foreach ($fixture in $FixtureExpectations.Keys) {
 	$missing = @(Get-MissingExpectations -LogPath $log -Expected $FixtureExpectations[$fixture])
 	foreach ($m in $missing) { $failures += "fixtures/${fixture}: expected line not found: '$m'" }
 	if ($missing.Count -eq 0) {
-		Write-Host ("  {0,-20} ok" -f $fixture) -ForegroundColor Green
-	} else {
-		Write-Host ("  {0,-20} {1} missing (see {2})" -f $fixture, $missing.Count, $log) -ForegroundColor Red
+		Write-Host ("  {0,-22} ok" -f $fixture) -ForegroundColor Green
+	}
+ else {
+		Write-Host ("  {0,-22} {1} missing (see {2})" -f $fixture, $missing.Count, $log) -ForegroundColor Red
 	}
 }
 
@@ -267,18 +291,21 @@ $usdResources = Join-Path $DemoDir "addons/godot-usd-bridge/usd"
 $disabled = Join-Path $DemoDir "addons/godot-usd-bridge/usd_disabled"
 if (-not (Test-Path $usdResources)) {
 	$failures += "negative: $usdResources not present to rename; rebuild to redeploy it"
-} else {
+}
+else {
 	Rename-Item $usdResources "usd_disabled"
 	try {
 		$log = Join-Path $LogDir "negative.log"
 		$code = Invoke-Godot -GodotArgs @("--headless", "--path", $DemoDir) -LogPath $log
-	} finally {
+	}
+ finally {
 		# Always restore, even if the run threw.
 		if (Test-Path $disabled) { Rename-Item $disabled "usd" }
 	}
 	if ($code -eq 0) {
 		$failures += "negative: demo exited 0; a missing resource tree went undetected"
-	} else {
+	}
+ else {
 		$missing = @(Get-MissingExpectations -LogPath $log -Expected @("Failed to register plugins"))
 		foreach ($m in $missing) { $failures += "negative: expected error missing: '$m'" }
 		if ($missing.Count -eq 0) { Write-Host "  ok (exited $code and reported the failure)" -ForegroundColor Green }

@@ -1,0 +1,63 @@
+#usda 1.0
+(
+    doc = """Mesh-import fixture (task 1.4): faceVertexCounts declares more
+    corners than faceVertexIndices supplies.
+
+    TOPOLOGY
+      points            4 entries
+      faceVertexCounts  [3, 2]            -> 3 + 2 = 5 corners declared
+      faceVertexIndices [0, 1, 2, 3]      -> only 4 supplied
+
+    The file is internally inconsistent: face 1 claims two corners, but only
+    one index remains once face 0 has consumed three. USD does not check this
+    at load time, so the stage opens and reads back cleanly -- the importer is
+    the only thing that notices.
+
+    Face 1 is also degenerate (2 corners cannot produce a triangle). That is
+    not incidental; it is what makes this topology worth having -- see
+    DETECTOR.
+
+    Expected:
+      - conversion FAILS: error_reason == CORNER_INDEX_OUT_OF_RANGE, raised by
+        validate_topology before any triangulation happens
+      - warn_flags has MESH_CONVERT_WARN_DEGENERATE_FACES set, from face 1
+      - the MeshInstance3D is still created, with no mesh (`mesh=<none>`), so
+        the prim keeps its place in the hierarchy
+      - TWO log lines, at two severities: a WARNING naming the degenerate
+        face, then an ERROR naming the reason. Warnings are printed whether or
+        not the conversion succeeded, so this is the fixture that proves a
+        failed mesh does not swallow what the converter already worked out.
+
+    DETECTOR: this is the only fixture that fails if validate_topology's sum
+    check is removed or weakened.
+
+    Before that check existed, this file imported CLEANLY as a single
+    triangle. Fan triangulation emits corner offsets 0, 1, 2 for face 0 and
+    nothing at all for the degenerate face 1, so the highest offset reaching
+    map_corners_to_points is 2 -- comfortably inside the 4-entry index array.
+    The per-corner bound never fires. Only summing the declared counts up
+    front reveals the inconsistency.
+
+    CONTRAST with malformed_mesh.usda, whose counts ARE consistent and which
+    fails later, on an out-of-range point index.
+
+    A fixture using faceVertexCounts = [4] against 3 indices would be a weaker
+    choice than this one: triangulation would emit offset 3, tripping the
+    per-corner bound, so that file would still fail even with the sum check
+    gone -- and would therefore detect nothing this suite does not already
+    cover."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Mesh "TruncatedIndices"
+    {
+        float3[] extent = [(0, 0, 0), (1, 0, 1)]
+        int[] faceVertexCounts = [3, 2]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [(0, 0, 0), (1, 0, 0), (0, 0, 1), (1, 0, 1)]
+    }
+}
