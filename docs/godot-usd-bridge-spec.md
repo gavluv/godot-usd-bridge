@@ -13,11 +13,12 @@ The original premise ("Godot has no USD support") holds in spirit but needs prec
 | Prior art | What it is | Why the gap remains |
 |---|---|---|
 | `meshula/usd-godot` | Native GDExtension prototype by Nick Porcino (Pixar/USD ecosystem). Runtime stage manipulation from GDScript, import/export, variants. | macOS-centric (.dylib), ~23 commits, no releases, no editor import pipeline. Validates feasibility; its `docs/embeddingUSD.md` is useful reference. |
+| `tefusion/godot-usd` | GDExtension registering an `EditorSceneFormatImporter` for `.usda`, plus a GDScript API over stage/prim data. UsdGeom, UsdShade (via tydra), WIP UsdSkel; Godot 4.4. | Built on `tinyusdz` (see below), so it inherits the composition limits ADR-001 rejects. ~40 commits, no releases, last commit March 2025. Its author frames the goal as moving richer scene data out of Blender rather than general USD import, and scope is Blender-exported `.usda`. *(verified August 2026)* |
 | `V-Sekai/godot-usd` | Addon that round-trips through Blender. | Not native — requires Blender installed; no USD API access. |
 | `godot-proposals` #7744, discussions #5469/#7436 | Open proposals debating built-in USD. | Demand documented; nothing landed in core. |
 | `tinyusdz` | Dependency-free C++14 USD reader. | **Explicitly rejected** for this project: incomplete composition semantics — full composition correctness requires real OpenUSD. Record this as a decision (ADR-001). |
 
-**Differentiation statement:** the first *released, Windows-first, editor-integrated* USD importer for Godot — drag a `.usd` into the FileSystem dock and it imports like glTF, with prebuilt binaries and CI.
+**Differentiation statement:** the first *released, Windows-first* USD importer for Godot built on **real OpenUSD** — drag a `.usd` into the FileSystem dock and it imports like glTF, with prebuilt binaries and CI.
 
 ---
 
@@ -163,7 +164,7 @@ Sizing: **S** ≤ half day · **M** 1–2 days · **L** 3+ days. Order within a 
 ### v0.3 — Editor Integration, Variants, Instancing
 | # | Task | Size |
 |---|---|---|
-| 3.1 | **Spike:** confirm `EditorSceneFormatImporter` is overridable from GDExtension on pinned Godot; else fall back to `EditorImportPlugin` | S |
+| 3.1 | **Spike:** confirm `EditorSceneFormatImporter` is overridable from GDExtension on pinned Godot; else fall back to `EditorImportPlugin`. *(`tefusion/godot-usd` registers one from a GDExtension on Godot 4.4 — not proof for 4.6, but the spike is likelier to succeed than the risk table assumed, and that project is a working reference if it stalls.)* | S |
 | 3.2 | Importer registration: `.usd/.usda/.usdc` import as `PackedScene` from FileSystem dock | **L** |
 | 3.3 | Import options UI: enumerate variant sets → selection options; payload policy; scale override; purpose toggle | M |
 | 3.4 | Instancing: instanceable prototypes → shared `ArrayMesh`; `PointInstancer` → `MultiMeshInstance3D` | **L** |
@@ -182,7 +183,7 @@ Sizing: **S** ≤ half day · **M** 1–2 days · **L** 3+ days. Order within a 
 | faceVarying vertex-split bugs (subtle, asset-dependent) | Golden fixtures with exact vertex/index count assertions before touching real assets |
 | DLL deployment ("works on my machine") | `.gdextension [dependencies]` declarations; CI installs the addon zip into a clean project and runs the smoke test |
 | Scope creep toward Hydra/export | Non-goals section; backlog quarantine |
-| `EditorSceneFormatImporter` not extension-friendly | Spike task 3.1 first; `EditorImportPlugin` fallback keeps v0.3 viable |
+| `EditorSceneFormatImporter` not extension-friendly | Spike task 3.1 first; `EditorImportPlugin` fallback keeps v0.3 viable. Risk lowered August 2026: a GDExtension already does this on Godot 4.4 (§1) |
 
 ---
 
