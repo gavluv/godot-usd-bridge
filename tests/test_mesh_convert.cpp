@@ -3,6 +3,10 @@
 #include <godot_cpp/variant/vector3.hpp>
 
 #include <pxr/base/vt/array.h>
+#include <pxr/usd/usdGeom/tokens.h>
+#include <pxr/usd/usdGeom/mesh.h>
+#include <pxr/usd/usdGeom/primvarsAPI.h>
+#include <pxr/usd/usdUtils/pipeline.h>
 
 #include <translate/mesh_convert.h>
 
@@ -207,4 +211,64 @@ TEST_CASE("mesh_convert: shared_edge_quads.usda converts correctly") {
 	CHECK(mesh_data.positions[3] == godot::Vector3(0, 0, -1));
 	CHECK(mesh_data.positions[4] == godot::Vector3(2, 0, 1));
 	CHECK(mesh_data.positions[5] == godot::Vector3(2, 0, -1));
+}
+
+TEST_CASE("mesh_convert: get_interpolation_mode returns correct values for valid tokens") {
+	auto constant_mode = godot_usd::translate::get_interpolation_mode(PXR_NS::UsdGeomTokens->constant);
+	CHECK(constant_mode.has_value());
+	CHECK(constant_mode.value() == godot_usd::translate::InterpolationMode::CONSTANT);
+	auto uniform_mode = godot_usd::translate::get_interpolation_mode(PXR_NS::UsdGeomTokens->uniform);
+	CHECK(uniform_mode.has_value());
+	CHECK(uniform_mode.value() == godot_usd::translate::InterpolationMode::UNIFORM);
+	auto varying_mode = godot_usd::translate::get_interpolation_mode(PXR_NS::UsdGeomTokens->varying);
+	CHECK(varying_mode.has_value());
+	CHECK(varying_mode.value() == godot_usd::translate::InterpolationMode::VARYING);
+	auto vertex_mode = godot_usd::translate::get_interpolation_mode(PXR_NS::UsdGeomTokens->vertex);
+	CHECK(vertex_mode.has_value());
+	CHECK(vertex_mode.value() == godot_usd::translate::InterpolationMode::VERTEX);
+	auto face_varying_mode = godot_usd::translate::get_interpolation_mode(PXR_NS::UsdGeomTokens->faceVarying);
+	CHECK(face_varying_mode.has_value());
+	CHECK(face_varying_mode.value() == godot_usd::translate::InterpolationMode::FACE_VARYING);
+}
+
+TEST_CASE("mesh_convert: get_interpolation_mode returns nullopt for invalid token") {
+	auto invalid_mode = godot_usd::translate::get_interpolation_mode(PXR_NS::TfToken("invalid_token"));
+	CHECK(!invalid_mode.has_value());
+}
+
+TEST_CASE("mesh_convert: expected_value_count returns correct values for valid interpolation modes") {
+	CHECK(godot_usd::translate::expected_value_count(godot_usd::translate::InterpolationMode::CONSTANT, 10, 20, 30) ==
+			1);
+	CHECK(godot_usd::translate::expected_value_count(godot_usd::translate::InterpolationMode::UNIFORM, 10, 20, 30) ==
+			20);
+	CHECK(godot_usd::translate::expected_value_count(godot_usd::translate::InterpolationMode::VARYING, 10, 20, 30) ==
+			10);
+	CHECK(godot_usd::translate::expected_value_count(godot_usd::translate::InterpolationMode::VERTEX, 10, 20, 30) ==
+			10);
+	CHECK(godot_usd::translate::expected_value_count(
+				  godot_usd::translate::InterpolationMode::FACE_VARYING, 10, 20, 30) == 30);
+}
+
+TEST_CASE("mesh_convert: expected_value_count returns correct values for empty mesh") {
+	CHECK(godot_usd::translate::expected_value_count(godot_usd::translate::InterpolationMode::CONSTANT, 0, 0, 0) == 1);
+	CHECK(godot_usd::translate::expected_value_count(godot_usd::translate::InterpolationMode::UNIFORM, 0, 0, 0) == 0);
+	CHECK(godot_usd::translate::expected_value_count(godot_usd::translate::InterpolationMode::VARYING, 0, 0, 0) == 0);
+	CHECK(godot_usd::translate::expected_value_count(godot_usd::translate::InterpolationMode::VERTEX, 0, 0, 0) == 0);
+	CHECK(godot_usd::translate::expected_value_count(godot_usd::translate::InterpolationMode::FACE_VARYING, 0, 0, 0) ==
+			0);
+}
+
+TEST_CASE("mesh_convert: unauthored_interpolation.usda returns expected default interpolation modes for normals and uv "
+		  "attributes") {
+	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("unauthored_interpolation.usda"));
+	REQUIRE(stage != nullptr);
+	auto prim = stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/UnauthoredInterpolation"));
+	REQUIRE(prim.IsValid());
+	auto primvars_api = PXR_NS::UsdGeomPrimvarsAPI(prim);
+	REQUIRE(primvars_api.HasPrimvar(PXR_NS::UsdUtilsGetPrimaryUVSetName()));
+	CHECK(primvars_api.GetPrimvar(PXR_NS::UsdUtilsGetPrimaryUVSetName()).GetInterpolation() ==
+			PXR_NS::UsdGeomTokens->constant);
+	auto usd_mesh = PXR_NS::UsdGeomMesh(prim);
+	REQUIRE(static_cast<bool>(usd_mesh));
+	CHECK(usd_mesh.GetNormalsInterpolation() == PXR_NS::UsdGeomTokens->vertex);
 }

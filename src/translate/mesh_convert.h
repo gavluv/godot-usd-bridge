@@ -6,8 +6,10 @@
 #include <pxr/usd/usd/common.h>
 #include <pxr/usd/usdGeom/mesh.h>
 #include <pxr/base/gf/vec3f.h>
+#include <pxr/base/tf/token.h>
 
 #include <vector>
+#include <optional>
 
 namespace godot_usd::translate {
 
@@ -38,6 +40,14 @@ enum class MeshConvertError {
 	POINT_INDEX_OUT_OF_RANGE,
 };
 
+enum class InterpolationMode {
+	CONSTANT,
+	UNIFORM,
+	VARYING,
+	VERTEX,
+	FACE_VARYING,
+};
+
 struct MeshData {
 	uint32_t warn_flags = 0;
 	MeshConvertError error_reason = MeshConvertError::UNSET;
@@ -66,6 +76,11 @@ MeshConvertError validate_topology(
 		const PXR_NS::VtArray<int> &p_face_vertex_counts, size_t p_index_count, uint32_t *r_warn_flags = nullptr);
 
 std::vector<int32_t> triangulate(const PXR_NS::VtArray<int> &p_face_vertex_counts);
+
+std::optional<InterpolationMode> get_interpolation_mode(const PXR_NS::TfToken &p_interpolation_token);
+
+size_t expected_value_count(
+		InterpolationMode p_interpolation_mode, size_t p_point_count, size_t p_face_count, size_t p_corner_count);
 
 } // namespace godot_usd::translate
 

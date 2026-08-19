@@ -1,0 +1,73 @@
+#usda 1.0
+(
+    doc = """Mesh-import fixture (task 1.4): interpolation left unauthored on
+    both a primvar and the normals attribute, which resolve to DIFFERENT
+    defaults.
+
+    This fixture guards USD's behaviour, not ours. Nothing in the importer
+    decides these values -- they come from the schema, so a pin bump could
+    change them silently and every unit test would still pass. This file is the
+    only thing standing there.
+
+    TOPOLOGY
+      points            4 entries, a quad in the XZ plane
+      faceVertexCounts  [4]
+      faceVertexIndices [0, 1, 2, 3]
+
+    THE TWO DEFAULTS
+      primvars:st  -> `constant`, per UsdGeomPrimvar::GetInterpolation()
+                      (usdGeom/primvar.h:278-279: "constant if unauthored")
+      normals      -> `vertex`, per UsdGeomPointBased::GetNormalsInterpolation()
+                      (usdGeom/pointBased.h:239-241: "The fallback
+                      interpolation, if left unspecified, is
+                      UsdGeomTokens->vertex")
+
+      Two code paths, two different fallbacks. Conflating them is easy and
+      silent: read `st` as vertex-interpolated and a one-element array looks
+      undersized; read `normals` as constant and a four-element array looks
+      oversized.
+
+    ARRAY SIZES ARE DELIBERATE
+      st has exactly ONE value and normals exactly FOUR (= point count),
+      because those are the lengths the two defaults imply. Sizing them any
+      other way would make this fixture test the over/undersized channel paths
+      at the same time, and a failure would not say which behaviour moved.
+
+    Expected -- assert USD directly, not the downstream effect:
+      - UsdGeomPrimvarsAPI(prim).GetPrimvar("st").GetInterpolation()
+          == UsdGeomTokens->constant
+      - UsdGeomMesh(prim).GetNormalsInterpolation()
+          == UsdGeomTokens->vertex
+
+      Going through to_mesh_data and inferring interpolation from which
+      channels survived would couple this to the channel-drop policy, which is
+      still moving. It would also miss a case: if the normals fallback became
+      `constant`, four normals against an expected one is merely oversized --
+      kept with a warning under 4h -- so a channel-presence check would pass
+      while the direct assertion fails immediately.
+
+    DETECTOR: a pinned-USD upgrade that changes either fallback. Nothing else
+    in the suite can see that; every other fixture authors interpolation
+    explicitly.
+
+    CONTRAST with normals_precedence.usda, which authors BOTH `normals` and
+    `primvars:normals` to pin a different rule -- that the primvar wins
+    (pointBased.h:203-204). This file authors only `normals`, so precedence
+    never comes into it."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Mesh "UnauthoredInterpolation"
+    {
+        float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+        normal3f[] normals = [(0, 1, 0), (0, 1, 0), (0, 1, 0), (0, 1, 0)]
+        texCoord2f[] primvars:st = [(0, 0)]
+    }
+}

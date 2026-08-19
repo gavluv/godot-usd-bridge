@@ -4,6 +4,7 @@
 
 #include <pxr/base/vt/array.h>
 #include <pxr/usd/usdGeom/mesh.h>
+#include <pxr/usd/usdGeom/tokens.h>
 
 #include <vector>
 #include <utility>
@@ -179,6 +180,44 @@ std::vector<int32_t> triangulate(const PXR_NS::VtArray<int> &p_face_vertex_count
 	}
 
 	return triangles;
+}
+
+std::optional<InterpolationMode> get_interpolation_mode(const PXR_NS::TfToken &p_interpolation_token) {
+	if (p_interpolation_token == PXR_NS::UsdGeomTokens->constant) {
+		return InterpolationMode::CONSTANT;
+	}
+	if (p_interpolation_token == PXR_NS::UsdGeomTokens->uniform) {
+		return InterpolationMode::UNIFORM;
+	}
+	if (p_interpolation_token == PXR_NS::UsdGeomTokens->varying) {
+		return InterpolationMode::VARYING;
+	}
+	if (p_interpolation_token == PXR_NS::UsdGeomTokens->vertex) {
+		return InterpolationMode::VERTEX;
+	}
+	if (p_interpolation_token == PXR_NS::UsdGeomTokens->faceVarying) {
+		return InterpolationMode::FACE_VARYING;
+	}
+	return std::nullopt;
+}
+
+size_t expected_value_count(
+		InterpolationMode p_interpolation_mode, size_t p_point_count, size_t p_face_count, size_t p_corner_count) {
+	switch (p_interpolation_mode) {
+	case InterpolationMode::CONSTANT:
+		return 1;
+	case InterpolationMode::UNIFORM:
+		return p_face_count;
+	case InterpolationMode::VARYING:
+		return p_point_count;
+	case InterpolationMode::VERTEX:
+		return p_point_count;
+	case InterpolationMode::FACE_VARYING:
+		return p_corner_count;
+	}
+	// Unreachable; prevents compiler warning. Returns SIZE_MAX so that values.size() >= expected_value_count(...)
+	// checks fail if p_interpolation_mode is invalid.
+	return size_t(-1);
 }
 
 } // namespace godot_usd::translate
