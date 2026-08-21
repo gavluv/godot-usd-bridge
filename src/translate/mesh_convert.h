@@ -72,15 +72,21 @@ MeshData to_mesh_data(const PXR_NS::UsdGeomMesh &p_mesh);
 
 MeshData to_mesh_data(const PXR_NS::UsdPrim &p_prim);
 
-MeshConvertError validate_topology(
-		const PXR_NS::VtArray<int> &p_face_vertex_counts, size_t p_index_count, uint32_t *r_warn_flags = nullptr);
+MeshConvertError validate_topology(const PXR_NS::VtArray<int> &p_face_vertex_counts, size_t p_index_count,
+		uint32_t *r_warn_flags = nullptr, size_t *r_corner_count = nullptr);
 
 std::vector<int32_t> triangulate(const PXR_NS::VtArray<int> &p_face_vertex_counts);
+
+std::vector<int32_t> corner_to_face(const PXR_NS::VtArray<int> &p_face_vertex_counts);
 
 std::optional<InterpolationMode> get_interpolation_mode(const PXR_NS::TfToken &p_interpolation_token);
 
 size_t expected_value_count(
 		InterpolationMode p_interpolation_mode, size_t p_point_count, size_t p_face_count, size_t p_corner_count);
+
+std::vector<int32_t> sample_value_indices(InterpolationMode p_interpolation_mode,
+		const std::vector<int32_t> &p_tri_indices, const std::optional<std::vector<int32_t>> &p_corner_to_face,
+		const PXR_NS::VtArray<int> &p_face_vertex_indices);
 
 } // namespace godot_usd::translate
 

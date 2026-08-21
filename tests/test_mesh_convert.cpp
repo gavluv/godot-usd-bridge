@@ -12,6 +12,7 @@
 
 #include <vector>
 #include <limits>
+#include <optional>
 
 static std::string fixture_path(const char *name) { return std::string(GODOT_USD_TEST_FIXTURE_DIR) + "/" + name; }
 
@@ -111,6 +112,14 @@ TEST_CASE("mesh_convert: validate_topology sets multiple warning flags") {
 	CHECK(err == godot_usd::translate::MeshConvertError::NONE);
 	CHECK((warn_flags & godot_usd::translate::MESH_CONVERT_WARN_DEGENERATE_FACES) != 0);
 	CHECK((warn_flags & godot_usd::translate::MESH_CONVERT_WARN_UNUSED_FACE_INDICES) != 0);
+}
+
+TEST_CASE("mesh_convert: validate_topology computes correct corner count") {
+	auto face_counts = PXR_NS::VtArray<int>{1, 2, 4};
+	size_t corner_count = 0;
+	auto err = godot_usd::translate::validate_topology(face_counts, 8, nullptr, &corner_count);
+	CHECK(err == godot_usd::translate::MeshConvertError::NONE);
+	CHECK(corner_count == 7);
 }
 
 TEST_CASE("mesh_convert: validate_topology with no warn_flags pointer succeeds") {
@@ -271,4 +280,72 @@ TEST_CASE("mesh_convert: unauthored_interpolation.usda returns expected default 
 	auto usd_mesh = PXR_NS::UsdGeomMesh(prim);
 	REQUIRE(static_cast<bool>(usd_mesh));
 	CHECK(usd_mesh.GetNormalsInterpolation() == PXR_NS::UsdGeomTokens->vertex);
+}
+
+TEST_CASE("mesh_convert: corner_to_face gives expected output for {4, 0, 3}") {
+	auto face_counts = PXR_NS::VtArray<int>{4, 0, 3};
+	auto corner_to_face_indices = godot_usd::translate::corner_to_face(face_counts);
+	check_int32_vectors_equal(corner_to_face_indices, std::vector<int32_t>{0, 0, 0, 0, 2, 2, 2});
+}
+
+TEST_CASE("mesh_convert: corner_to_face gives expected output for {4, 2, 3}") {
+	auto face_counts = PXR_NS::VtArray<int>{4, 2, 3};
+	auto corner_to_face_indices = godot_usd::translate::corner_to_face(face_counts);
+	check_int32_vectors_equal(corner_to_face_indices, std::vector<int32_t>{0, 0, 0, 0, 1, 1, 2, 2, 2});
+}
+
+TEST_CASE("mesh_convert: corner_to_face returns empty for {}") {
+	auto face_counts = PXR_NS::VtArray<int>();
+	auto corner_to_face_indices = godot_usd::translate::corner_to_face(face_counts);
+	CHECK(corner_to_face_indices.size() == 0);
+}
+
+TEST_CASE("mesh_convert: sample_value_indices gives expected output for CONSTANT interpolation") {
+	auto tri_indices = std::vector<int32_t>{2, 0, 1};
+	auto face_vertex_indices = PXR_NS::VtArray<int>(3);
+	auto value_indices = godot_usd::translate::sample_value_indices(
+			godot_usd::translate::InterpolationMode::CONSTANT, tri_indices, std::nullopt, face_vertex_indices);
+	check_int32_vectors_equal(value_indices, std::vector<int32_t>{0, 0, 0});
+}
+
+TEST_CASE("mesh_convert: sample_value_indices gives expected output for UNIFORM interpolation") {
+	auto tri_indices = std::vector<int32_t>{2, 0, 1};
+	auto corner_to_face = std::vector<int32_t>{3, 4, 5};
+	auto face_vertex_indices = PXR_NS::VtArray<int>(3);
+	auto value_indices = godot_usd::translate::sample_value_indices(
+			godot_usd::translate::InterpolationMode::UNIFORM, tri_indices, corner_to_face, face_vertex_indices);
+	check_int32_vectors_equal(value_indices, std::vector<int32_t>{5, 3, 4});
+}
+
+TEST_CASE("mesh_convert: sample_value_indices throws bad_optional_access for UNIFORM interpolation with no "
+		  "corner_to_face parameter supplied") {
+	auto tri_indices = std::vector<int32_t>{2, 0, 1};
+	auto face_vertex_indices = PXR_NS::VtArray<int>(3);
+	CHECK_THROWS_AS(godot_usd::translate::sample_value_indices(godot_usd::translate::InterpolationMode::UNIFORM,
+							tri_indices, std::nullopt, face_vertex_indices),
+			std::bad_optional_access);
+}
+
+TEST_CASE("mesh_convert: sample_value_indices gives expected output for VARYING interpolation") {
+	auto tri_indices = std::vector<int32_t>{2, 0, 1};
+	auto face_vertex_indices = PXR_NS::VtArray<int>{6, 7, 8};
+	auto value_indices = godot_usd::translate::sample_value_indices(
+			godot_usd::translate::InterpolationMode::VARYING, tri_indices, std::nullopt, face_vertex_indices);
+	check_int32_vectors_equal(value_indices, std::vector<int32_t>{8, 6, 7});
+}
+
+TEST_CASE("mesh_convert: sample_value_indices gives expected output for VERTEX interpolation") {
+	auto tri_indices = std::vector<int32_t>{2, 0, 1};
+	auto face_vertex_indices = PXR_NS::VtArray<int>{6, 7, 8};
+	auto value_indices = godot_usd::translate::sample_value_indices(
+			godot_usd::translate::InterpolationMode::VERTEX, tri_indices, std::nullopt, face_vertex_indices);
+	check_int32_vectors_equal(value_indices, std::vector<int32_t>{8, 6, 7});
+}
+
+TEST_CASE("mesh_convert: sample_value_indices gives expected output for FACE_VARYING interpolation") {
+	auto tri_indices = std::vector<int32_t>{2, 0, 1};
+	auto face_vertex_indices = PXR_NS::VtArray<int>{6, 7, 8};
+	auto value_indices = godot_usd::translate::sample_value_indices(
+			godot_usd::translate::InterpolationMode::FACE_VARYING, tri_indices, std::nullopt, face_vertex_indices);
+	check_int32_vectors_equal(value_indices, std::vector<int32_t>{2, 0, 1});
 }

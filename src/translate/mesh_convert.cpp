@@ -121,8 +121,8 @@ static int get_triangles_produced(int p_face_count) {
 	return p_face_count - 2;
 }
 
-MeshConvertError validate_topology(
-		const PXR_NS::VtArray<int> &p_face_vertex_counts, size_t p_index_count, uint32_t *r_warn_flags) {
+MeshConvertError validate_topology(const PXR_NS::VtArray<int> &p_face_vertex_counts, size_t p_index_count,
+		uint32_t *r_warn_flags, size_t *r_corner_count) {
 	size_t face_index_offset = 0;
 
 	for (int face_count : p_face_vertex_counts) {
@@ -150,7 +150,35 @@ MeshConvertError validate_topology(
 		return MeshConvertError::CORNER_INDEX_OUT_OF_RANGE;
 	}
 
+	if (r_corner_count) {
+		*r_corner_count = face_index_offset;
+	}
+
 	return MeshConvertError::NONE;
+}
+
+std::vector<int32_t> corner_to_face(const PXR_NS::VtArray<int> &p_face_vertex_counts) {
+	size_t corner_count = 0;
+	for (int face_count : p_face_vertex_counts) {
+		corner_count += get_corners_consumed(face_count);
+	}
+
+	auto corner_to_face_indices = std::vector<int32_t>(corner_count);
+	int32_t num_faces = static_cast<int32_t>(p_face_vertex_counts.size());
+
+	int32_t corner_index = 0;
+	int32_t face_index = 0;
+
+	while (face_index < num_faces) {
+		int face_count = get_corners_consumed(p_face_vertex_counts[face_index]);
+		for (int i = 0; i < face_count; ++i) {
+			corner_to_face_indices[corner_index] = face_index;
+			corner_index++;
+		}
+		face_index++;
+	}
+
+	return corner_to_face_indices;
 }
 
 std::vector<int32_t> triangulate(const PXR_NS::VtArray<int> &p_face_vertex_counts) {
@@ -218,6 +246,37 @@ size_t expected_value_count(
 	// Unreachable; prevents compiler warning. Returns SIZE_MAX so that values.size() >= expected_value_count(...)
 	// checks fail if p_interpolation_mode is invalid.
 	return size_t(-1);
+}
+
+std::vector<int32_t> sample_value_indices(InterpolationMode p_interpolation_mode,
+		const std::vector<int32_t> &p_tri_indices, const std::optional<std::vector<int32_t>> &p_corner_to_face,
+		const PXR_NS::VtArray<int> &p_face_vertex_indices) {
+	std::vector<int32_t> value_indices = std::vector<int32_t>(p_tri_indices.size());
+
+	switch (p_interpolation_mode) {
+	case InterpolationMode::CONSTANT:
+		// Don't need to do anything; value_indices is already all 0's
+		break;
+	case InterpolationMode::UNIFORM:
+		// p_corner_to_face.value() throws std::bad_optional_access if the caller fails to supply it
+		for (size_t i = 0; i < p_tri_indices.size(); ++i) {
+			value_indices[i] = p_corner_to_face.value()[p_tri_indices[i]];
+		}
+		break;
+	case InterpolationMode::VARYING:
+	case InterpolationMode::VERTEX:
+		for (size_t i = 0; i < p_tri_indices.size(); ++i) {
+			value_indices[i] = p_face_vertex_indices[p_tri_indices[i]];
+		}
+		break;
+	case InterpolationMode::FACE_VARYING:
+		for (size_t i = 0; i < p_tri_indices.size(); ++i) {
+			value_indices[i] = p_tri_indices[i];
+		}
+		break;
+	}
+
+	return value_indices;
 }
 
 } // namespace godot_usd::translate
