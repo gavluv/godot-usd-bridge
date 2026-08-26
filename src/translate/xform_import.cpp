@@ -32,7 +32,7 @@ static godot::Node3D *import_prim(const PXR_NS::UsdPrim &p_prim, PXR_NS::UsdGeom
 	godot::Node3D *node;
 
 	if (p_prim.IsA<PXR_NS::UsdGeomMesh>()) {
-		node = import_mesh(PXR_NS::UsdGeomMesh(p_prim));
+		node = import_mesh(p_prim);
 	} else {
 		node = memnew(godot::Node3D);
 	}

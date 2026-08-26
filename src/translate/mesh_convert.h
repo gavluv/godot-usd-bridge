@@ -29,7 +29,6 @@ enum MeshConvertWarning {
 enum class MeshConvertError {
 	NONE = 0,
 	UNSET = 1,
-	INVALID_SCHEMA_OBJ,
 	INVALID_PRIM,
 	PRIM_NOT_A_MESH,
 	FAILED_TO_GET_FACE_VERTEX_COUNTS,
@@ -67,8 +66,6 @@ MeshConvertError map_corners_to_points(
 
 MeshData to_mesh_data(const PXR_NS::VtArray<int> &p_face_vertex_counts,
 		const PXR_NS::VtArray<int> &p_face_vertex_indices, const PXR_NS::VtArray<PXR_NS::GfVec3f> &p_points);
-
-MeshData to_mesh_data(const PXR_NS::UsdGeomMesh &p_mesh);
 
 MeshData to_mesh_data(const PXR_NS::UsdPrim &p_prim);
 

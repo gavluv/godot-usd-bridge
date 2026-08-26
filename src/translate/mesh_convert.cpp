@@ -69,29 +69,6 @@ MeshData to_mesh_data(const PXR_NS::VtArray<int> &p_face_vertex_counts,
 	return mesh_data;
 }
 
-MeshData to_mesh_data(const PXR_NS::UsdGeomMesh &p_mesh) {
-	if (!static_cast<bool>(p_mesh)) {
-		return MeshData::from_error(MeshConvertError::INVALID_SCHEMA_OBJ);
-	}
-
-	auto face_vertex_counts = PXR_NS::VtArray<int>();
-	if (!p_mesh.GetFaceVertexCountsAttr().Get(&face_vertex_counts)) {
-		return MeshData::from_error(MeshConvertError::FAILED_TO_GET_FACE_VERTEX_COUNTS);
-	}
-
-	auto face_vertex_indices = PXR_NS::VtArray<int>();
-	if (!p_mesh.GetFaceVertexIndicesAttr().Get(&face_vertex_indices)) {
-		return MeshData::from_error(MeshConvertError::FAILED_TO_GET_FACE_VERTEX_INDICES);
-	}
-
-	auto points = PXR_NS::VtArray<PXR_NS::GfVec3f>();
-	if (!p_mesh.GetPointsAttr().Get(&points)) {
-		return MeshData::from_error(MeshConvertError::FAILED_TO_GET_POINTS);
-	}
-
-	return to_mesh_data(face_vertex_counts, face_vertex_indices, points);
-}
-
 MeshData to_mesh_data(const PXR_NS::UsdPrim &p_prim) {
 	if (!p_prim.IsValid()) {
 		return MeshData::from_error(MeshConvertError::INVALID_PRIM);
@@ -101,7 +78,24 @@ MeshData to_mesh_data(const PXR_NS::UsdPrim &p_prim) {
 		return MeshData::from_error(MeshConvertError::PRIM_NOT_A_MESH);
 	}
 
-	return to_mesh_data(PXR_NS::UsdGeomMesh(p_prim));
+	PXR_NS::UsdGeomMesh mesh = PXR_NS::UsdGeomMesh(p_prim);
+
+	auto face_vertex_counts = PXR_NS::VtArray<int>();
+	if (!mesh.GetFaceVertexCountsAttr().Get(&face_vertex_counts)) {
+		return MeshData::from_error(MeshConvertError::FAILED_TO_GET_FACE_VERTEX_COUNTS);
+	}
+
+	auto face_vertex_indices = PXR_NS::VtArray<int>();
+	if (!mesh.GetFaceVertexIndicesAttr().Get(&face_vertex_indices)) {
+		return MeshData::from_error(MeshConvertError::FAILED_TO_GET_FACE_VERTEX_INDICES);
+	}
+
+	auto points = PXR_NS::VtArray<PXR_NS::GfVec3f>();
+	if (!mesh.GetPointsAttr().Get(&points)) {
+		return MeshData::from_error(MeshConvertError::FAILED_TO_GET_POINTS);
+	}
+
+	return to_mesh_data(face_vertex_counts, face_vertex_indices, points);
 }
 
 // Topology helper functions to keep triangulate() and validate_topology() in agreement about what a face consumes and

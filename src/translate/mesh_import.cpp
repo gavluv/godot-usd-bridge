@@ -4,7 +4,7 @@
 #include <godot_cpp/variant/packed_int32_array.hpp>
 #include <godot_cpp/variant/packed_vector3_array.hpp>
 
-#include <pxr/usd/usdGeom/mesh.h>
+#include <pxr/usd/usd/prim.h>
 
 #include "mesh_import.h"
 #include "mesh_convert.h"
@@ -37,8 +37,6 @@ static godot::String get_error_reason_string(const MeshConvertError p_error_reas
 		return "None";
 	case MeshConvertError::UNSET:
 		return "Unset";
-	case MeshConvertError::INVALID_SCHEMA_OBJ:
-		return "Invalid schema object";
 	case MeshConvertError::INVALID_PRIM:
 		return "Invalid prim";
 	case MeshConvertError::PRIM_NOT_A_MESH:
@@ -83,23 +81,22 @@ godot::Ref<godot::ArrayMesh> godot_mesh(const MeshData &p_mesh_data) {
 	return mesh;
 }
 
-godot::MeshInstance3D *import_mesh(const PXR_NS::UsdGeomMesh &p_usd_mesh) {
+godot::MeshInstance3D *import_mesh(const PXR_NS::UsdPrim &p_prim) {
 	godot::MeshInstance3D *mesh_instance = memnew(godot::MeshInstance3D);
-	auto mesh_data = to_mesh_data(p_usd_mesh);
+	auto mesh_data = to_mesh_data(p_prim);
 	if (mesh_data.warn_flags != 0) {
-		WARN_PRINT("USD mesh conversion warnings: " + godot::String(p_usd_mesh.GetPrim().GetPath().GetText()) + " (" +
+		WARN_PRINT("USD mesh conversion warnings: " + godot::String(p_prim.GetPath().GetText()) + " (" +
 				   get_warn_flags_string(mesh_data.warn_flags) + ")");
 	}
 	if (mesh_data.is_valid()) {
 		if (!mesh_data.triangles.empty()) {
 			auto mesh = godot_mesh(mesh_data);
-			mesh->set_name(godot::String(p_usd_mesh.GetPrim().GetName().GetText()));
+			mesh->set_name(godot::String(p_prim.GetName().GetText()));
 			mesh_instance->set_mesh(mesh);
 		}
 	} else {
-		ERR_PRINT(
-				"Failed to convert USD mesh to Godot mesh: " + godot::String(p_usd_mesh.GetPrim().GetPath().GetText()) +
-				" (" + get_error_reason_string(mesh_data.error_reason) + ")");
+		ERR_PRINT("Failed to convert USD mesh to Godot mesh: " + godot::String(p_prim.GetPath().GetText()) + " (" +
+				  get_error_reason_string(mesh_data.error_reason) + ")");
 	}
 
 	return mesh_instance;

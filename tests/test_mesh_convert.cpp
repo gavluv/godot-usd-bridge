@@ -142,9 +142,7 @@ TEST_CASE("mesh_convert: quad_mesh.usda triangulates correctly") {
 TEST_CASE("mesh_convert: quad_mesh.usda converts correctly") {
 	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("quad_mesh.usda"));
 	REQUIRE(stage != nullptr);
-	auto usd_mesh = PXR_NS::UsdGeomMesh(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/Quad")));
-	REQUIRE(static_cast<bool>(usd_mesh));
-	auto mesh_data = godot_usd::translate::to_mesh_data(usd_mesh);
+	auto mesh_data = godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/Quad")));
 	CHECK(mesh_data.is_valid());
 	CHECK(mesh_data.warn_flags == 0);
 	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3});
@@ -159,9 +157,8 @@ TEST_CASE("mesh_convert: truncated_face_indices.usda fails to convert with degen
 		  "out of range error") {
 	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("truncated_face_indices.usda"));
 	REQUIRE(stage != nullptr);
-	auto usd_mesh = PXR_NS::UsdGeomMesh(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/TruncatedIndices")));
-	REQUIRE(static_cast<bool>(usd_mesh));
-	auto mesh_data = godot_usd::translate::to_mesh_data(usd_mesh);
+	auto mesh_data =
+			godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/TruncatedIndices")));
 	CHECK(mesh_data.warn_flags == godot_usd::translate::MESH_CONVERT_WARN_DEGENERATE_FACES);
 	CHECK(!mesh_data.is_valid());
 	CHECK(mesh_data.error_reason == godot_usd::translate::MeshConvertError::CORNER_INDEX_OUT_OF_RANGE);
@@ -207,9 +204,7 @@ TEST_CASE("mesh_convert: map_corners_to_points negative point index fails") {
 TEST_CASE("mesh_convert: shared_edge_quads.usda converts correctly") {
 	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("shared_edge_quads.usda"));
 	REQUIRE(stage != nullptr);
-	auto usd_mesh = PXR_NS::UsdGeomMesh(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/SharedEdgeQuads")));
-	REQUIRE(static_cast<bool>(usd_mesh));
-	auto mesh_data = godot_usd::translate::to_mesh_data(usd_mesh);
+	auto mesh_data = godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/SharedEdgeQuads")));
 	CHECK(mesh_data.is_valid());
 	CHECK(mesh_data.warn_flags == 0);
 	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3, 3, 2, 4, 3, 4, 5});
