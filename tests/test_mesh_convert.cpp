@@ -110,8 +110,8 @@ TEST_CASE("mesh_convert: validate_topology sets multiple warning flags") {
 	uint32_t warn_flags = 0;
 	auto err = godot_usd::translate::validate_topology(face_counts, 8, &warn_flags);
 	CHECK(err == godot_usd::translate::MeshConvertError::NONE);
-	CHECK((warn_flags & godot_usd::translate::MESH_CONVERT_WARN_DEGENERATE_FACES) != 0);
-	CHECK((warn_flags & godot_usd::translate::MESH_CONVERT_WARN_UNUSED_FACE_INDICES) != 0);
+	CHECK(warn_flags == (godot_usd::translate::MESH_CONVERT_WARN_DEGENERATE_FACES |
+								godot_usd::translate::MESH_CONVERT_WARN_UNUSED_FACE_INDICES));
 }
 
 TEST_CASE("mesh_convert: validate_topology computes correct corner count") {
@@ -343,4 +343,42 @@ TEST_CASE("mesh_convert: sample_value_indices gives expected output for FACE_VAR
 	auto value_indices = godot_usd::translate::sample_value_indices(
 			godot_usd::translate::InterpolationMode::FACE_VARYING, tri_indices, std::nullopt, face_vertex_indices);
 	check_int32_vectors_equal(value_indices, std::vector<int32_t>{2, 0, 1});
+}
+
+TEST_CASE("mesh_convert: validate_channel returns true with no warnings when expected == actual value count") {
+	uint32_t channel_warn_flags = 0;
+	CHECK(godot_usd::translate::validate_channel(
+			godot_usd::translate::InterpolationMode::CONSTANT, 1, 10, 20, 30, &channel_warn_flags));
+	CHECK(channel_warn_flags == 0);
+	channel_warn_flags = 0;
+	CHECK(godot_usd::translate::validate_channel(
+			godot_usd::translate::InterpolationMode::UNIFORM, 20, 10, 20, 30, &channel_warn_flags));
+	CHECK(channel_warn_flags == 0);
+	channel_warn_flags = 0;
+	CHECK(godot_usd::translate::validate_channel(
+			godot_usd::translate::InterpolationMode::VARYING, 10, 10, 20, 30, &channel_warn_flags));
+	CHECK(channel_warn_flags == 0);
+	channel_warn_flags = 0;
+	CHECK(godot_usd::translate::validate_channel(
+			godot_usd::translate::InterpolationMode::VERTEX, 10, 10, 20, 30, &channel_warn_flags));
+	CHECK(channel_warn_flags == 0);
+	channel_warn_flags = 0;
+	CHECK(godot_usd::translate::validate_channel(
+			godot_usd::translate::InterpolationMode::FACE_VARYING, 30, 10, 20, 30, &channel_warn_flags));
+	CHECK(channel_warn_flags == 0);
+	channel_warn_flags = 0;
+}
+
+TEST_CASE("mesh_convert: validate_channel returns true with UNUSED_VALUES warning") {
+	uint32_t warn_flags = 0;
+	CHECK(godot_usd::translate::validate_channel(
+			godot_usd::translate::InterpolationMode::FACE_VARYING, 35, 10, 20, 30, &warn_flags));
+	CHECK(warn_flags == godot_usd::translate::MESH_CONVERT_CHANNEL_WARN_UNUSED_VALUES);
+}
+
+TEST_CASE("mesh_convert: validate_channel returns false with TRUNCATED_VALUES warning") {
+	uint32_t warn_flags = 0;
+	CHECK(!godot_usd::translate::validate_channel(
+			godot_usd::translate::InterpolationMode::FACE_VARYING, 25, 10, 20, 30, &warn_flags));
+	CHECK(warn_flags == godot_usd::translate::MESH_CONVERT_CHANNEL_WARN_TRUNCATED_VALUES);
 }

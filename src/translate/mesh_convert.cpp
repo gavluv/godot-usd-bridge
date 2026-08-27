@@ -5,6 +5,8 @@
 #include <pxr/base/vt/array.h>
 #include <pxr/usd/usdGeom/mesh.h>
 #include <pxr/usd/usdGeom/tokens.h>
+#include <pxr/usd/usdGeom/primvarsAPI.h>
+#include <pxr/usd/usdUtils/pipeline.h>
 
 #include <vector>
 #include <utility>
@@ -32,12 +34,22 @@ MeshConvertError map_corners_to_points(
 	return MeshConvertError::NONE;
 }
 
+static void lazy_build_corner_to_face(InterpolationMode p_check_mode, const PXR_NS::VtArray<int> &p_face_vertex_counts,
+		std::optional<std::vector<int32_t>> *r_corner_to_face) {
+	if (!r_corner_to_face->has_value() && p_check_mode == InterpolationMode::UNIFORM) {
+		*r_corner_to_face = corner_to_face(p_face_vertex_counts);
+	}
+}
+
 MeshData to_mesh_data(const PXR_NS::VtArray<int> &p_face_vertex_counts,
-		const PXR_NS::VtArray<int> &p_face_vertex_indices, const PXR_NS::VtArray<PXR_NS::GfVec3f> &p_points) {
+		const PXR_NS::VtArray<int> &p_face_vertex_indices, const PXR_NS::VtArray<PXR_NS::GfVec3f> &p_points,
+		const std::optional<MeshChannelParams<PXR_NS::GfVec3f>> &p_normals,
+		const std::optional<MeshChannelParams<PXR_NS::GfVec2f>> &p_uvs) {
 	auto mesh_data = MeshData();
+	size_t corner_count = 0;
 
 	mesh_data.error_reason =
-			validate_topology(p_face_vertex_counts, p_face_vertex_indices.size(), &mesh_data.warn_flags);
+			validate_topology(p_face_vertex_counts, p_face_vertex_indices.size(), &mesh_data.warn_flags, &corner_count);
 
 	if (!mesh_data.is_valid()) {
 		return mesh_data;
@@ -46,6 +58,48 @@ MeshData to_mesh_data(const PXR_NS::VtArray<int> &p_face_vertex_counts,
 	auto triangles = triangulate(p_face_vertex_counts);
 
 	size_t point_count = p_points.size();
+	size_t face_count = p_face_vertex_counts.size();
+
+	std::optional<std::vector<int32_t>> corner_to_face_map = std::nullopt;
+
+	// normals
+	bool normals_valid = false;
+	std::vector<godot::Vector3> normals_values;
+	std::vector<int32_t> normals_indices;
+
+	if (p_normals.has_value() && validate_channel(p_normals->mode, p_normals->values.size(), point_count, face_count,
+										 corner_count, &mesh_data.normals_warn_flags)) {
+		lazy_build_corner_to_face(p_normals->mode, p_face_vertex_counts, &corner_to_face_map);
+		normals_indices = sample_value_indices(p_normals->mode, triangles, corner_to_face_map, p_face_vertex_indices);
+		normals_values = std::vector<godot::Vector3>(p_normals->values.size());
+		for (size_t i = 0; i < normals_values.size(); ++i) {
+			if (p_normals->values[i].GetLengthSq() == 0.0f) {
+				mesh_data.normals_warn_flags |= MESH_CONVERT_CHANNEL_WARN_ZERO_LENGTH_NORMAL;
+				normals_values[i] = godot::Vector3(0, 1, 0);
+			} else {
+				normals_values[i] =
+						godot::Vector3(p_normals->values[i][0], p_normals->values[i][1], p_normals->values[i][2])
+								.normalized();
+			}
+		}
+		normals_valid = true;
+	}
+
+	// uvs
+	bool uvs_valid = false;
+	std::vector<godot::Vector2> uvs_values;
+	std::vector<int32_t> uvs_indices;
+
+	if (p_uvs.has_value() && validate_channel(p_uvs->mode, p_uvs->values.size(), point_count, face_count, corner_count,
+									 &mesh_data.uvs_warn_flags)) {
+		lazy_build_corner_to_face(p_uvs.value().mode, p_face_vertex_counts, &corner_to_face_map);
+		uvs_indices = sample_value_indices(p_uvs->mode, triangles, corner_to_face_map, p_face_vertex_indices);
+		uvs_values = std::vector<godot::Vector2>(p_uvs->values.size());
+		for (size_t i = 0; i < uvs_values.size(); ++i) {
+			uvs_values[i] = godot::Vector2(p_uvs->values[i][0], 1.0f - p_uvs->values[i][1]);
+		}
+		uvs_valid = true;
+	}
 
 	mesh_data.error_reason = map_corners_to_points(triangles, p_face_vertex_indices, point_count);
 
@@ -95,7 +149,73 @@ MeshData to_mesh_data(const PXR_NS::UsdPrim &p_prim) {
 		return MeshData::from_error(MeshConvertError::FAILED_TO_GET_POINTS);
 	}
 
-	return to_mesh_data(face_vertex_counts, face_vertex_indices, points);
+	auto primvars_api = PXR_NS::UsdGeomPrimvarsAPI(p_prim);
+
+	// normals
+	std::optional<MeshChannelParams<PXR_NS::GfVec3f>> normals = std::nullopt;
+	std::optional<InterpolationMode> normals_mode = std::nullopt;
+	auto normals_values = PXR_NS::VtArray<PXR_NS::GfVec3f>();
+	uint32_t normals_warnings = 0;
+
+	if (primvars_api.HasPrimvar(PXR_NS::UsdGeomTokens->normals)) {
+		auto normals_primvar = primvars_api.GetPrimvar(PXR_NS::UsdGeomTokens->normals);
+		normals_mode = get_interpolation_mode(normals_primvar.GetInterpolation());
+		if (!normals_mode.has_value()) {
+			normals_warnings |= MESH_CONVERT_CHANNEL_WARN_INVALID_INTERPOLATION;
+		} else if (normals_primvar.GetElementSize() != 1) {
+			normals_warnings |= MESH_CONVERT_CHANNEL_WARN_BAD_ELEMENT_SIZE;
+		} else if (normals_primvar.ComputeFlattened(&normals_values)) {
+			normals = MeshChannelParams<PXR_NS::GfVec3f>{normals_mode.value(), normals_values};
+		} else {
+			normals_warnings |= MESH_CONVERT_CHANNEL_WARN_NO_AUTHORED_VALUES;
+		}
+	}
+
+	if (!normals.has_value()) {
+		normals_mode = get_interpolation_mode(mesh.GetNormalsInterpolation());
+		auto normals_attr = mesh.GetNormalsAttr();
+		if (!normals_mode.has_value()) {
+			normals_warnings |= MESH_CONVERT_CHANNEL_WARN_INVALID_INTERPOLATION;
+		} else if (normals_attr.Get(&normals_values)) {
+			if (normals_warnings != 0) {
+				// primvars:normals exists but we couldn't use it; we have a usable normals attribute to fall back to
+				// -> clear warnings for the primvar and set a unique flag
+				normals_warnings = MESH_CONVERT_CHANNEL_WARN_BAD_NORMALS_PRIMVAR;
+			}
+			normals = MeshChannelParams<PXR_NS::GfVec3f>{normals_mode.value(), normals_values};
+		} else if (!normals_attr.IsAuthored()) {
+			// no authored normals attribute -> valid, don't warn
+		} else if (normals_warnings == 0) {
+			// primvars:normals warnings take precedence, so only warn about normals if the primvar had none
+			normals_warnings |= MESH_CONVERT_CHANNEL_WARN_NO_AUTHORED_VALUES;
+		}
+	}
+
+	// uvs
+	std::optional<MeshChannelParams<PXR_NS::GfVec2f>> uvs = std::nullopt;
+	uint32_t uvs_warnings = 0;
+
+	if (primvars_api.HasPrimvar(PXR_NS::UsdUtilsGetPrimaryUVSetName())) {
+		auto uvs_primvar = primvars_api.GetPrimvar(PXR_NS::UsdUtilsGetPrimaryUVSetName());
+		auto uvs_mode = get_interpolation_mode(uvs_primvar.GetInterpolation());
+		auto uvs_values = PXR_NS::VtArray<PXR_NS::GfVec2f>();
+		if (!uvs_mode.has_value()) {
+			uvs_warnings |= MESH_CONVERT_CHANNEL_WARN_INVALID_INTERPOLATION;
+		} else if (uvs_primvar.GetElementSize() != 1) {
+			uvs_warnings |= MESH_CONVERT_CHANNEL_WARN_BAD_ELEMENT_SIZE;
+		} else if (uvs_primvar.ComputeFlattened(&uvs_values)) {
+			uvs = MeshChannelParams<PXR_NS::GfVec2f>{uvs_mode.value(), uvs_values};
+		} else {
+			uvs_warnings |= MESH_CONVERT_CHANNEL_WARN_NO_AUTHORED_VALUES;
+		}
+	}
+
+	auto mesh_data = to_mesh_data(face_vertex_counts, face_vertex_indices, points, normals, uvs);
+
+	mesh_data.normals_warn_flags |= normals_warnings;
+	mesh_data.uvs_warn_flags |= uvs_warnings;
+
+	return mesh_data;
 }
 
 // Topology helper functions to keep triangulate() and validate_topology() in agreement about what a face consumes and
@@ -149,6 +269,25 @@ MeshConvertError validate_topology(const PXR_NS::VtArray<int> &p_face_vertex_cou
 	}
 
 	return MeshConvertError::NONE;
+}
+
+bool validate_channel(InterpolationMode p_interpolation_mode, size_t p_value_count, size_t p_point_count,
+		size_t p_face_count, size_t p_corner_count, uint32_t *r_channel_warn_flags) {
+	size_t expected_count = expected_value_count(p_interpolation_mode, p_point_count, p_face_count, p_corner_count);
+
+	if (p_value_count > expected_count) {
+		if (r_channel_warn_flags) {
+			*r_channel_warn_flags |= MESH_CONVERT_CHANNEL_WARN_UNUSED_VALUES;
+		}
+		return true;
+	} else if (p_value_count < expected_count) {
+		if (r_channel_warn_flags) {
+			*r_channel_warn_flags |= MESH_CONVERT_CHANNEL_WARN_TRUNCATED_VALUES;
+		}
+		return false;
+	}
+
+	return true;
 }
 
 std::vector<int32_t> corner_to_face(const PXR_NS::VtArray<int> &p_face_vertex_counts) {

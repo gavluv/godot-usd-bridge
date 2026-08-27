@@ -31,6 +31,38 @@ static godot::String get_warn_flags_string(const uint32_t p_warn_flags) {
 	return godot::String("; ").join(warn_parts);
 }
 
+static godot::String get_channel_warn_flags_string(const uint32_t p_warn_flags) {
+	if (p_warn_flags == 0) {
+		return "";
+	}
+
+	auto warn_parts = godot::PackedStringArray();
+
+	if (p_warn_flags & MESH_CONVERT_CHANNEL_WARN_INVALID_INTERPOLATION) {
+		warn_parts.append("invalid interpolation mode");
+	}
+	if (p_warn_flags & MESH_CONVERT_CHANNEL_WARN_BAD_ELEMENT_SIZE) {
+		warn_parts.append("unexpected element size");
+	}
+	if (p_warn_flags & MESH_CONVERT_CHANNEL_WARN_NO_AUTHORED_VALUES) {
+		warn_parts.append("no authored values");
+	}
+	if (p_warn_flags & MESH_CONVERT_CHANNEL_WARN_UNUSED_VALUES) {
+		warn_parts.append("unused values");
+	}
+	if (p_warn_flags & MESH_CONVERT_CHANNEL_WARN_TRUNCATED_VALUES) {
+		warn_parts.append("truncated values");
+	}
+	if (p_warn_flags & MESH_CONVERT_CHANNEL_WARN_BAD_NORMALS_PRIMVAR) {
+		warn_parts.append("malformed normals primvar");
+	}
+	if (p_warn_flags & MESH_CONVERT_CHANNEL_WARN_ZERO_LENGTH_NORMAL) {
+		warn_parts.append("contains zero-length normal value");
+	}
+
+	return godot::String("; ").join(warn_parts);
+}
+
 static godot::String get_error_reason_string(const MeshConvertError p_error_reason) {
 	switch (p_error_reason) {
 	case MeshConvertError::NONE:
@@ -84,9 +116,19 @@ godot::Ref<godot::ArrayMesh> godot_mesh(const MeshData &p_mesh_data) {
 godot::MeshInstance3D *import_mesh(const PXR_NS::UsdPrim &p_prim) {
 	godot::MeshInstance3D *mesh_instance = memnew(godot::MeshInstance3D);
 	auto mesh_data = to_mesh_data(p_prim);
+	auto warn_parts = godot::PackedStringArray();
 	if (mesh_data.warn_flags != 0) {
+		warn_parts.append(get_warn_flags_string(mesh_data.warn_flags));
+	}
+	if (mesh_data.normals_warn_flags != 0) {
+		warn_parts.append("[NORMALS] " + get_channel_warn_flags_string(mesh_data.normals_warn_flags));
+	}
+	if (mesh_data.uvs_warn_flags != 0) {
+		warn_parts.append("[UVS] " + get_channel_warn_flags_string(mesh_data.uvs_warn_flags));
+	}
+	if (warn_parts.size() > 0) {
 		WARN_PRINT("USD mesh conversion warnings: " + godot::String(p_prim.GetPath().GetText()) + " (" +
-				   get_warn_flags_string(mesh_data.warn_flags) + ")");
+				   godot::String("; ").join(warn_parts) + ")");
 	}
 	if (mesh_data.is_valid()) {
 		if (!mesh_data.triangles.empty()) {

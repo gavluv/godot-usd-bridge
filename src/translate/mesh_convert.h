@@ -2,6 +2,7 @@
 #define GODOT_USD_BRIDGE_TRANSLATE_MESH_CONVERT_H
 
 #include <godot_cpp/variant/vector3.hpp>
+#include <godot_cpp/variant/vector2.hpp>
 
 #include <pxr/usd/usd/common.h>
 #include <pxr/usd/usdGeom/mesh.h>
@@ -22,6 +23,16 @@ enum MeshConvertWarning {
 	MESH_CONVERT_WARN_NO_GEOMETRY = 1 << 0,
 	MESH_CONVERT_WARN_DEGENERATE_FACES = 1 << 1,
 	MESH_CONVERT_WARN_UNUSED_FACE_INDICES = 1 << 2,
+};
+
+enum MeshConvertChannelWarning {
+	MESH_CONVERT_CHANNEL_WARN_INVALID_INTERPOLATION = 1 << 0,
+	MESH_CONVERT_CHANNEL_WARN_BAD_ELEMENT_SIZE = 1 << 1,
+	MESH_CONVERT_CHANNEL_WARN_NO_AUTHORED_VALUES = 1 << 2,
+	MESH_CONVERT_CHANNEL_WARN_UNUSED_VALUES = 1 << 3,
+	MESH_CONVERT_CHANNEL_WARN_TRUNCATED_VALUES = 1 << 4,
+	MESH_CONVERT_CHANNEL_WARN_BAD_NORMALS_PRIMVAR = 1 << 5,
+	MESH_CONVERT_CHANNEL_WARN_ZERO_LENGTH_NORMAL = 1 << 6,
 };
 
 // An error is terminal and singular, so it's a scoped discriminant. MeshData.error_reason defaults to UNSET for
@@ -53,6 +64,10 @@ struct MeshData {
 	bool is_valid() const { return error_reason == MeshConvertError::NONE; }
 	std::vector<godot::Vector3> positions;
 	std::vector<int32_t> triangles;
+	uint32_t normals_warn_flags = 0;
+	std::vector<godot::Vector3> normals;
+	uint32_t uvs_warn_flags = 0;
+	std::vector<godot::Vector2> uvs;
 
 	static MeshData from_error(MeshConvertError p_error_reason) {
 		MeshData data;
@@ -61,16 +76,26 @@ struct MeshData {
 	}
 };
 
+template <typename T> struct MeshChannelParams {
+	InterpolationMode mode;
+	PXR_NS::VtArray<T> values;
+};
+
 MeshConvertError map_corners_to_points(
 		std::vector<int32_t> &r_tri_indices, const PXR_NS::VtArray<int> &p_face_vertex_indices, size_t p_point_count);
 
 MeshData to_mesh_data(const PXR_NS::VtArray<int> &p_face_vertex_counts,
-		const PXR_NS::VtArray<int> &p_face_vertex_indices, const PXR_NS::VtArray<PXR_NS::GfVec3f> &p_points);
+		const PXR_NS::VtArray<int> &p_face_vertex_indices, const PXR_NS::VtArray<PXR_NS::GfVec3f> &p_points,
+		const std::optional<MeshChannelParams<PXR_NS::GfVec3f>> &p_normals,
+		const std::optional<MeshChannelParams<PXR_NS::GfVec2f>> &p_uvs);
 
 MeshData to_mesh_data(const PXR_NS::UsdPrim &p_prim);
 
 MeshConvertError validate_topology(const PXR_NS::VtArray<int> &p_face_vertex_counts, size_t p_index_count,
 		uint32_t *r_warn_flags = nullptr, size_t *r_corner_count = nullptr);
+
+bool validate_channel(InterpolationMode p_interpolation_mode, size_t p_value_count, size_t p_point_count,
+		size_t p_face_count, size_t p_corner_count, uint32_t *r_warn_flags = nullptr);
 
 std::vector<int32_t> triangulate(const PXR_NS::VtArray<int> &p_face_vertex_counts);
 
