@@ -147,6 +147,79 @@ $FixtureExpectations = [ordered]@{
 		"mesh=<none>",
 		"nodes: 3"
 	)
+	# ---- channel defects (task 1.4) -------------------------------------
+	# Every needle below is pinned from the opening '(' to the closing ')'.
+	# Warning segments can only appear INSIDE those parens, so the closing
+	# one is what makes each of these detect an EXTRA warning as well as a
+	# missing one. Do not trim them to the message text alone.
+	"bogus_interp"           = @(
+		# An interpolation token USD does not define. There is no safe default
+		# to fall back on -- the token decides both how many values to expect
+		# and which one each corner gets -- so the channel is dropped.
+		"WARNING: USD mesh conversion warnings: /Root/BogusInterp ([UVS] invalid interpolation mode)",
+		"mesh='BogusInterp' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
+		"nodes: 3"
+	)
+	"oversized_primvar"      = @(
+		# More values than the interpolation calls for is USABLE: every corner
+		# still resolves and the surplus is ignored. Must say 'unused', not
+		# 'truncated', and must NOT drop the channel.
+		"WARNING: USD mesh conversion warnings: /Root/OversizedPrimvar ([UVS] unused values)",
+		"mesh='OversizedPrimvar' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
+		"nodes: 3"
+	)
+	"elementsize_primvar"    = @(
+		# elementSize is a stride, so 8 values over 4 points is well formed USD
+		# rather than a surplus. Ignoring elementSize lands this in the 'unused
+		# values' branch instead and assigns stride garbage to half the mesh.
+		"WARNING: USD mesh conversion warnings: /Root/ElementSizePrimvar ([UVS] unexpected element size)",
+		"mesh='ElementSizePrimvar' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
+		"nodes: 3"
+	)
+	"no_normals_mesh"        = @(
+		# Authors no normals, which is ordinary USD. The mesh-level warning
+		# exists only to give the needle a parenthesised list to pin: a
+		# [NORMALS] or [UVS] segment can only appear inside it. This is the
+		# regression test for warning on every mesh that leaves normals to the
+		# renderer.
+		"WARNING: USD mesh conversion warnings: /Root/NoNormals (degenerate faces)",
+		"mesh='NoNormals' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
+		"nodes: 3"
+	)
+	"zero_normal_mesh"       = @(
+		# Structurally perfect channel with one unusable VALUE. Warns and is
+		# KEPT, with (0, 1, 0) substituted -- the opposite disposition from the
+		# count-mismatch fixtures, which warn and drop.
+		"WARNING: USD mesh conversion warnings: /Root/ZeroNormal ([NORMALS] contains zero-length normal value)",
+		"mesh='ZeroNormal' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
+		"nodes: 3"
+	)
+	"normals_precedence"     = @(
+		# Malformed primvars:normals with a usable `normals` attribute behind
+		# it. Once the fallback succeeds the specific primvar warning is
+		# REPLACED, so 'invalid interpolation mode' appearing here is a failure
+		# even though the primvar really did have one.
+		"WARNING: USD mesh conversion warnings: /Root/NormalsPrecedence ([NORMALS] malformed normals primvar)",
+		"mesh='NormalsPrecedence' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
+		"nodes: 3"
+	)
+	"blocked_normals"        = @(
+		# `= None` is an authored opinion, so unlike no_normals_mesh it must
+		# warn. Get() fails on a block, so no channel is built and the count
+		# check is never reached: 'no authored values', never 'truncated'.
+		"WARNING: USD mesh conversion warnings: /Root/BlockedNormals ([NORMALS] no authored values)",
+		"mesh='BlockedNormals' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
+		"nodes: 3"
+	)
+	"empty_normals_array"    = @(
+		# `= []` is a real value that Get() SUCCEEDS on, so a channel is built
+		# and then judged short against P=4. The only fixture reaching
+		# validate_channel through normals rather than a primvar, and the only
+		# one covering the short-array direction.
+		"WARNING: USD mesh conversion warnings: /Root/EmptyNormalsArray ([NORMALS] truncated values)",
+		"mesh='EmptyNormalsArray' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
+		"nodes: 3"
+	)
 }
 
 $SmokeExpectations = @(

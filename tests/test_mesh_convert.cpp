@@ -7,6 +7,8 @@
 #include <pxr/usd/usdGeom/mesh.h>
 #include <pxr/usd/usdGeom/primvarsAPI.h>
 #include <pxr/usd/usdUtils/pipeline.h>
+#include <pxr/usd/usd/stage.h>
+#include <pxr/usd/sdf/path.h>
 
 #include <translate/mesh_convert.h>
 
@@ -381,4 +383,89 @@ TEST_CASE("mesh_convert: validate_channel returns false with TRUNCATED_VALUES wa
 	CHECK(!godot_usd::translate::validate_channel(
 			godot_usd::translate::InterpolationMode::FACE_VARYING, 25, 10, 20, 30, &warn_flags));
 	CHECK(warn_flags == godot_usd::translate::MESH_CONVERT_CHANNEL_WARN_TRUNCATED_VALUES);
+}
+
+TEST_CASE("mesh_convert: bogus_interp.usda succeeds with INVALID_INTERPOLATION warning") {
+	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("bogus_interp.usda"));
+	REQUIRE(stage != nullptr);
+	auto mesh_data = godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/BogusInterp")));
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == 0);
+	CHECK(mesh_data.normals_warn_flags == 0);
+	CHECK(mesh_data.uvs_warn_flags == godot_usd::translate::MESH_CONVERT_CHANNEL_WARN_INVALID_INTERPOLATION);
+}
+
+TEST_CASE("mesh_convert: elementsize_primvar.usda succeeds with BAD_ELEMENT_SIZE warning") {
+	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("elementsize_primvar.usda"));
+	REQUIRE(stage != nullptr);
+	auto mesh_data =
+			godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/ElementSizePrimvar")));
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == 0);
+	CHECK(mesh_data.normals_warn_flags == 0);
+	CHECK(mesh_data.uvs_warn_flags == godot_usd::translate::MESH_CONVERT_CHANNEL_WARN_BAD_ELEMENT_SIZE);
+}
+
+TEST_CASE("mesh_convert: oversized_primvar.usda succeeds with UNUSED_VALUES warning") {
+	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("oversized_primvar.usda"));
+	REQUIRE(stage != nullptr);
+	auto mesh_data =
+			godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/OversizedPrimvar")));
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == 0);
+	CHECK(mesh_data.normals_warn_flags == 0);
+	CHECK(mesh_data.uvs_warn_flags == godot_usd::translate::MESH_CONVERT_CHANNEL_WARN_UNUSED_VALUES);
+}
+
+TEST_CASE("mesh_convert: blocked_normals.usda succeeds with NO_AUTHORED_VALUES warning") {
+	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("blocked_normals.usda"));
+	REQUIRE(stage != nullptr);
+	auto mesh_data = godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/BlockedNormals")));
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == 0);
+	CHECK(mesh_data.uvs_warn_flags == 0);
+	CHECK(mesh_data.normals_warn_flags == godot_usd::translate::MESH_CONVERT_CHANNEL_WARN_NO_AUTHORED_VALUES);
+}
+
+TEST_CASE("mesh_convert: no_normals_mesh.usda succeeds with DEGENERATE_FACES warning") {
+	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("no_normals_mesh.usda"));
+	REQUIRE(stage != nullptr);
+	auto mesh_data = godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/NoNormals")));
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == godot_usd::translate::MESH_CONVERT_WARN_DEGENERATE_FACES);
+	CHECK(mesh_data.uvs_warn_flags == 0);
+	CHECK(mesh_data.normals_warn_flags == 0);
+}
+
+TEST_CASE("mesh_convert: empty_normals_array.usda succeeds with TRUNCATED_VALUES warning") {
+	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("empty_normals_array.usda"));
+	REQUIRE(stage != nullptr);
+	auto mesh_data =
+			godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/EmptyNormalsArray")));
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == 0);
+	CHECK(mesh_data.uvs_warn_flags == 0);
+	CHECK(mesh_data.normals_warn_flags == godot_usd::translate::MESH_CONVERT_CHANNEL_WARN_TRUNCATED_VALUES);
+}
+
+TEST_CASE("mesh_convert: normals_precedence.usda succeeds with BAD_NORMALS_PRIMVAR warning and falls back to the "
+		  "`normals` attribute") {
+	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("normals_precedence.usda"));
+	REQUIRE(stage != nullptr);
+	auto mesh_data =
+			godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/NormalsPrecedence")));
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == 0);
+	CHECK(mesh_data.uvs_warn_flags == 0);
+	CHECK(mesh_data.normals_warn_flags == godot_usd::translate::MESH_CONVERT_CHANNEL_WARN_BAD_NORMALS_PRIMVAR);
+}
+
+TEST_CASE("mesh_convert: zero_normal_mesh.usda succeeds with ZERO_LENGTH_NORMAL warning") {
+	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("zero_normal_mesh.usda"));
+	REQUIRE(stage != nullptr);
+	auto mesh_data = godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/ZeroNormal")));
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == 0);
+	CHECK(mesh_data.uvs_warn_flags == 0);
+	CHECK(mesh_data.normals_warn_flags == godot_usd::translate::MESH_CONVERT_CHANNEL_WARN_ZERO_LENGTH_NORMAL);
 }
