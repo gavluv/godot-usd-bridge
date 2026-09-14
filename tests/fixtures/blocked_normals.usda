@@ -1,0 +1,61 @@
+#usda 1.0
+(
+    doc = """Mesh-import fixture (task 1.4): normals explicitly BLOCKED with
+    `= None`, which is authored-but-unreadable and must warn.
+
+    The other half of no_normals_mesh.usda. That file never mentions normals and
+    must stay silent; this one mentions them and must not.
+
+    TOPOLOGY -- the quad_mesh.usda quad
+      points            4 entries
+      faceVertexCounts  [4]
+      faceVertexIndices [0, 1, 2, 3]
+
+    THE DEFECT
+      `normal3f[] normals = None` is a value BLOCK: a real authored opinion
+      whose content is "there is no value here". Composition-wise it is the
+      opposite of silence -- it exists to stop a weaker layer's normals from
+      showing through.
+
+      What the queries say about it, measured rather than assumed:
+
+        IsAuthored()                             yes  <- separates it from silence
+        HasAuthoredValue()                       no
+        GetResolveInfo().HasAuthoredValueOpinion() yes  <- separates it from a
+                                                           bare declaration
+        Get()                                    no
+
+      Because Get() fails, no channel is ever constructed, so validate_channel
+      is never reached and the count-mismatch flags cannot fire. The warning
+      comes from the read attempt itself.
+
+    EXPECTED
+      - conversion SUCCEEDS; a blocked channel is not a geometry problem
+      - 4 vertices, 6 indices, [0, 1, 2, 0, 2, 3]
+      - AABB spans (-1, 0, -1) to (1, 0, 1)
+      - warns [NORMALS] no authored values, and nothing else
+
+      NOT 'truncated values'. A block never becomes a zero-length channel; it
+      never becomes a channel at all. empty_normals_array.usda covers the
+      authoring that DOES take that path.
+
+    DETECTOR: an importer that fixes the warn-on-every-mesh bug by dropping the
+    normals warning entirely passes no_normals_mesh.usda and fails here. The two
+    files only work as a pair -- one asserts silence, the other asserts noise,
+    and a single over-broad guard cannot satisfy both."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Mesh "BlockedNormals"
+    {
+        float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+        normal3f[] normals = None
+    }
+}

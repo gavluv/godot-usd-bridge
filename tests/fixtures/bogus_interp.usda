@@ -1,0 +1,55 @@
+#usda 1.0
+(
+    doc = """Mesh-import fixture (task 1.4): a primvar carrying an interpolation
+    token that is not one of USD's five, so the channel must be rejected rather
+    than guessed at.
+
+    TOPOLOGY -- the quad_mesh.usda quad, so the surface assertions below are
+    that file's, unchanged
+      points            4 entries
+      faceVertexCounts  [4]
+      faceVertexIndices [0, 1, 2, 3]
+
+    THE DEFECT
+      primvars:st declares interpolation = "perFace", which is not a USD
+      interpolation. USD stores interpolation as plain token metadata and does
+      not validate it at parse time, so a file like this loads cleanly and the
+      importer is the first thing that has to notice.
+
+      get_interpolation_mode returns nullopt, and there is no sensible
+      recovery: the token decides how many values the channel should have and
+      which one belongs to each corner, so a wrong guess silently misassigns
+      every value. The channel is dropped.
+
+    EXPECTED
+      - conversion SUCCEEDS; the geometry is unaffected by a bad primvar
+      - 4 vertices, 6 indices, [0, 1, 2, 0, 2, 3]
+      - AABB spans (-1, 0, -1) to (1, 0, 1)
+      - warns [UVS] invalid interpolation mode, and nothing else
+
+    DETECTOR: an importer that treats an unrecognised token as a default --
+    "constant" and "vertex" are both tempting -- converts without complaint and
+    maps UVs wrongly. The warning is the only signal, since the surface itself
+    is identical either way.
+
+    The expected line is pinned from its opening '(' to its closing ')', so a
+    spurious [NORMALS] segment (this mesh authors no normals) also fails the
+    match."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Mesh "BogusInterp"
+    {
+        float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+        texCoord2f[] primvars:st = [(0, 0), (0, 1), (1, 1), (1, 0)] (
+            interpolation = "perFace"
+        )
+    }
+}

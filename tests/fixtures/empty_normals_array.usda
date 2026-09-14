@@ -1,0 +1,62 @@
+#usda 1.0
+(
+    doc = """Mesh-import fixture (task 1.4): normals authored as an EMPTY array,
+    the one authoring that reaches the normals channel's count check.
+
+    Completes the trio with no_normals_mesh.usda (silent) and
+    blocked_normals.usda (warns without ever building a channel). All three look
+    alike in a text editor -- no usable normals -- and each takes a different
+    path.
+
+    TOPOLOGY -- the quad_mesh.usda quad
+      points            4 entries
+      faceVertexCounts  [4]
+      faceVertexIndices [0, 1, 2, 3]
+
+    THE DEFECT
+      `normal3f[] normals = []` is a genuine authored value that happens to hold
+      nothing. Unlike a block, Get() SUCCEEDS on it and returns an array of size
+      0, so a channel really is constructed and then has to be judged on its
+      contents:
+
+        normal3f[] normals        Get() no   -> no channel, 'no authored values'
+        normal3f[] normals = None Get() no   -> no channel, 'no authored values'
+        normal3f[] normals = []   Get() YES  -> channel built, count checked
+
+      GetNormalsInterpolation() falls back to "vertex" for an unauthored
+      interpolation, so the expected count is P = 4 against an actual 0. Short,
+      not surplus: sampling would index past the end of the array, so the
+      channel is dropped rather than kept.
+
+    EXPECTED
+      - conversion SUCCEEDS
+      - 4 vertices, 6 indices, [0, 1, 2, 0, 2, 3]
+      - AABB spans (-1, 0, -1) to (1, 0, 1)
+      - warns [NORMALS] truncated values, and nothing else
+
+    DETECTOR: this is the only fixture in the corpus that reaches
+    validate_channel through the NORMALS path rather than a primvar, and the
+    only one that exercises the short-array branch on any channel. Every other
+    count-mismatch fixture is a UV primvar, and oversized_primvar.usda covers
+    only the surplus direction.
+
+    An importer that short-circuits on an empty array -- treating size 0 as
+    'nothing authored' before the count check runs -- reports 'no authored
+    values' here and loses the distinction between an author who wrote nothing
+    and an author who wrote an empty list."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Mesh "EmptyNormalsArray"
+    {
+        float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+        normal3f[] normals = []
+    }
+}

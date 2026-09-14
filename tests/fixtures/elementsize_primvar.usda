@@ -1,0 +1,55 @@
+#usda 1.0
+(
+    doc = """Mesh-import fixture (task 1.4): a primvar with elementSize > 1,
+    which the importer does not support and must reject rather than misread.
+
+    TOPOLOGY -- the quad_mesh.usda quad
+      points            4 entries
+      faceVertexCounts  [4]
+      faceVertexIndices [0, 1, 2, 3]
+
+    THE DEFECT
+      primvars:st declares elementSize = 2. elementSize is a STRIDE: it says
+      each element of the interpolation domain consumes N consecutive array
+      entries, so a vertex-interpolated primvar over 4 points with elementSize
+      2 legitimately holds 8 values, and point i owns values [2i, 2i+1].
+
+      Eight values are authored here, so the array is internally consistent --
+      this is a well-formed USD file, not a corrupt one. What it is not is
+      something ArrayMesh can carry: a UV channel holds exactly one Vector2 per
+      vertex, with no room for a second.
+
+    EXPECTED
+      - conversion SUCCEEDS; the geometry is unaffected
+      - 4 vertices, 6 indices, [0, 1, 2, 0, 2, 3]
+      - AABB spans (-1, 0, -1) to (1, 0, 1)
+      - warns [UVS] unexpected element size, and nothing else
+
+    DETECTOR: an importer that ignores elementSize reads this as 8 values
+    against an expected 4, which lands in the 'unused values' branch instead --
+    it keeps the channel and assigns point i the value at index i, so the mesh
+    gets UVs that are half right and half stride garbage. The distinguishing
+    assertion is therefore WHICH warning appears: 'unexpected element size'
+    rather than 'unused values'.
+
+    The expected line is pinned from '(' to ')', so a spurious [NORMALS]
+    segment (this mesh authors no normals) also fails the match."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Mesh "ElementSizePrimvar"
+    {
+        float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+        texCoord2f[] primvars:st = [(0, 0), (0.1, 0.1), (0, 1), (0.1, 0.9), (1, 1), (0.9, 0.9), (1, 0), (0.9, 0.1)] (
+            elementSize = 2
+            interpolation = "vertex"
+        )
+    }
+}

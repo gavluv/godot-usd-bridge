@@ -1,0 +1,70 @@
+#usda 1.0
+(
+    doc = """Mesh-import fixture (task 1.4): an unusable primvars:normals
+    alongside a usable normals attribute, so the importer must fall back and say
+    which source it ended up on.
+
+    THE TWO SOURCES
+      USD can carry normals two ways, and they are not the same kind of thing:
+
+        normals           a builtin attribute on UsdGeomPointBased
+        primvars:normals  an actual primvar, reached through UsdGeomPrimvarsAPI
+
+      `normals` is NOT a primvar -- HasPrimvar("normals") is false even on a
+      mesh that authors it -- so the two are read through different APIs and
+      only primvars:normals can be indexed or carry elementSize.
+
+      When both are present, primvars:normals wins. That is the precedence this
+      file is named for, but it is not what this file asserts; see below.
+
+    THE DEFECT
+      primvars:normals declares interpolation = "perVertex", which is not a USD
+      interpolation token ("vertex" is). So the primvar resolves to no mode and
+      cannot be used.
+
+      The `normals` attribute is authored, vertex-interpolated and well formed,
+      so the importer falls back to it and succeeds. Because a usable source was
+      found, the specific primvar warning is REPLACED by a single flag naming
+      the real situation: the mesh has normals, but the primvar meant to supply
+      them was malformed.
+
+    EXPECTED
+      - conversion SUCCEEDS with normals taken from the `normals` attribute
+      - 4 vertices, 6 indices, [0, 1, 2, 0, 2, 3]
+      - AABB spans (-1, 0, -1) to (1, 0, 1)
+      - warns [NORMALS] malformed normals primvar, and nothing else
+
+      Specifically NOT 'invalid interpolation mode'. That flag is raised first
+      and then overwritten once the fallback succeeds, because by then it
+      describes a source the importer did not use.
+
+    DETECTOR: an importer that reads only `normals` and never looks for the
+    primvar converts this file silently and correctly, and would keep doing so
+    right up until it met a mesh where the two disagree. The warning is what
+    proves the primvar was consulted at all.
+
+    LIMIT: this asserts the FALLBACK path, not precedence itself. Proving that
+    primvars:normals wins when both are valid needs the chosen values to be
+    observable, and normals do not reach the node dump yet. When they do, this
+    file should gain a sibling with two valid, DIFFERENT normal sets."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Mesh "NormalsPrecedence"
+    {
+        float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+        normal3f[] normals = [(0, 1, 0), (0, 1, 0), (0, 1, 0), (0, 1, 0)] (
+            interpolation = "vertex"
+        )
+        normal3f[] primvars:normals = [(1, 0, 0), (1, 0, 0), (1, 0, 0), (1, 0, 0)] (
+            interpolation = "perVertex"
+        )
+    }
+}

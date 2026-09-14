@@ -1,0 +1,65 @@
+#usda 1.0
+(
+    doc = """Mesh-import fixture (task 1.4): a mesh that authors no normals at
+    all, which is ordinary USD and must produce NO normals warning.
+
+    WHY IT EXISTS
+      `normals` is a builtin attribute on UsdGeomPointBased, so the schema
+      always hands back a valid UsdAttribute whether or not the scene mentioned
+      it. An importer that treats "could not read a value" as a defect warns on
+      every mesh in the world that leaves normals to the renderer -- which is
+      most of them. That regression shipped once during task 1.4 and reached
+      five fixtures before the golden gate caught two of them.
+
+      The distinguishing query is UsdAttribute::IsAuthored(), which is false
+      only when the scene never mentioned normals. Its siblings do not work:
+      IsDefined() is a constant true for a builtin, and HasValue() and
+      HasAuthoredValue() track Get() exactly and so cannot say WHY a read
+      failed. See blocked_normals.usda for the authored-but-unreadable side.
+
+    TOPOLOGY
+      points            4 entries
+      faceVertexCounts  [4, 2]              -> 4 + 2 = 6 corners
+      faceVertexIndices [0, 1, 2, 3,  0, 1]
+
+      Face 1 has two corners and so produces no triangles. It exists solely to
+      raise a mesh-level warning, for the reason under DETECTOR below. It reuses
+      points 0 and 1 rather than introducing new ones, so no point is left
+      unreferenced and the vertex count does not depend on compaction.
+
+      st is authored, valid, and vertex-interpolated -- present so that this
+      file asserts silence from BOTH channels, not just normals.
+
+    EXPECTED
+      - conversion SUCCEEDS
+      - 4 vertices, 6 indices, [0, 1, 2, 0, 2, 3]
+      - AABB spans (-1, 0, -1) to (1, 0, 1)
+      - warns exactly '(degenerate faces)' -- no [NORMALS], no [UVS]
+
+    DETECTOR: a fixture that warns about nothing cannot detect a NEW warning,
+    because check_godot.ps1 asserts that expected lines are PRESENT and never
+    that unexpected ones are absent. So this file deliberately earns one
+    mesh-level warning, and the assertion is pinned from the opening '(' to the
+    closing ')'. A normals or UV segment can only appear INSIDE those parens,
+    which breaks the match.
+
+    That makes the closing parenthesis the entire point of this fixture. Do not
+    trim the needle to just 'degenerate faces'."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Mesh "NoNormals"
+    {
+        float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+        int[] faceVertexCounts = [4, 2]
+        int[] faceVertexIndices = [0, 1, 2, 3, 0, 1]
+        point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+        texCoord2f[] primvars:st = [(0, 0), (0, 1), (1, 1), (1, 0)] (
+            interpolation = "vertex"
+        )
+    }
+}

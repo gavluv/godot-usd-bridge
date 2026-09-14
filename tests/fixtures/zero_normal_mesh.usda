@@ -1,0 +1,60 @@
+#usda 1.0
+(
+    doc = """Mesh-import fixture (task 1.4): an authored normal of zero length,
+    which cannot be normalised and must be substituted rather than propagated.
+
+    TOPOLOGY -- the quad_mesh.usda quad
+      points            4 entries
+      faceVertexCounts  [4]
+      faceVertexIndices [0, 1, 2, 3]
+
+    THE DEFECT
+      normals is vertex-interpolated with 4 values, so the count is correct and
+      validate_channel passes. Point 2's normal is (0, 0, 0).
+
+      A zero vector has no direction, so normalising it divides by zero. Godot's
+      Vector3::normalized() returns the zero vector rather than a NaN, so the
+      value would flow all the way into ARRAY_NORMAL and reach the shader,
+      where it produces a black or undefined shaded fragment on every triangle
+      touching that vertex.
+
+      The importer substitutes (0, 1, 0) -- a legal unit vector, deliberately
+      wrong rather than subtly wrong -- and flags the substitution.
+
+    EXPECTED
+      - conversion SUCCEEDS and the channel is KEPT, with 3 authored normals
+        and 1 substituted
+      - 4 vertices, 6 indices, [0, 1, 2, 0, 2, 3]
+      - AABB spans (-1, 0, -1) to (1, 0, 1)
+      - warns [NORMALS] contains zero-length normal value, and nothing else
+
+    NOTE the interpolation is 'vertex' on purpose. A faceVarying channel here
+    would make the vertex count depend on whether splitting has landed, and this
+    fixture is meant to assert the same numbers before and after that work.
+
+    DETECTOR: an importer that normalises unconditionally emits a zero normal
+    and says nothing. Nothing in the node dump moves -- positions, indices and
+    the AABB are all unaffected by a normal's value -- so until normals reach
+    the mesh dump the warning is the only observable difference.
+
+    CONTRAST with the count-mismatch fixtures: this channel is well formed by
+    every structural measure. Only an individual VALUE is unusable, which is
+    why it warns and is kept rather than warning and being dropped."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Mesh "ZeroNormal"
+    {
+        float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+        normal3f[] normals = [(0, 1, 0), (0, 1, 0), (0, 0, 0), (0, 1, 0)] (
+            interpolation = "vertex"
+        )
+    }
+}
