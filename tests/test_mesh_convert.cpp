@@ -1,8 +1,11 @@
 #include <doctest/doctest.h>
 
 #include <godot_cpp/variant/vector3.hpp>
+#include <godot_cpp/variant/vector2.hpp>
 
 #include <pxr/base/vt/array.h>
+#include <pxr/base/gf/vec3f.h>
+#include <pxr/base/gf/vec2f.h>
 #include <pxr/usd/usdGeom/tokens.h>
 #include <pxr/usd/usdGeom/mesh.h>
 #include <pxr/usd/usdGeom/primvarsAPI.h>
@@ -23,6 +26,30 @@ static void check_int32_vectors_equal(const std::vector<int32_t> &actual, const 
 	for (size_t i = 0; i < expected.size(); ++i) {
 		CAPTURE(i);
 		CHECK(actual[i] == expected[i]);
+	}
+}
+
+static void check_godot_v3_vectors_equal(
+		const std::vector<godot::Vector3> &actual, const std::vector<godot::Vector3> &expected) {
+	REQUIRE(actual.size() == expected.size());
+	for (size_t i = 0; i < expected.size(); ++i) {
+		CAPTURE(i);
+		CAPTURE("(" + std::to_string(actual[i].x) + ", " + std::to_string(actual[i].y) + ", " +
+				std::to_string(actual[i].z) + ")");
+		CAPTURE("(" + std::to_string(expected[i].x) + ", " + std::to_string(expected[i].y) + ", " +
+				std::to_string(expected[i].z) + ")");
+		CHECK(actual[i].is_equal_approx(expected[i]));
+	}
+}
+
+static void check_godot_v2_vectors_equal(
+		const std::vector<godot::Vector2> &actual, const std::vector<godot::Vector2> &expected) {
+	REQUIRE(actual.size() == expected.size());
+	for (size_t i = 0; i < expected.size(); ++i) {
+		CAPTURE(i);
+		CAPTURE("(" + std::to_string(actual[i].x) + ", " + std::to_string(actual[i].y) + ")");
+		CAPTURE("(" + std::to_string(expected[i].x) + ", " + std::to_string(expected[i].y) + ")");
+		CHECK(actual[i].is_equal_approx(expected[i]));
 	}
 }
 
@@ -385,7 +412,7 @@ TEST_CASE("mesh_convert: validate_channel returns false with TRUNCATED_VALUES wa
 	CHECK(warn_flags == godot_usd::translate::MESH_CONVERT_CHANNEL_WARN_TRUNCATED_VALUES);
 }
 
-TEST_CASE("mesh_convert: bogus_interp.usda succeeds with INVALID_INTERPOLATION warning") {
+TEST_CASE("mesh_convert: bogus_interp.usda succeeds with INVALID_INTERPOLATION warning, uvs dropped") {
 	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("bogus_interp.usda"));
 	REQUIRE(stage != nullptr);
 	auto mesh_data = godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/BogusInterp")));
@@ -393,9 +420,10 @@ TEST_CASE("mesh_convert: bogus_interp.usda succeeds with INVALID_INTERPOLATION w
 	CHECK(mesh_data.warn_flags == 0);
 	CHECK(mesh_data.normals_warn_flags == 0);
 	CHECK(mesh_data.uvs_warn_flags == godot_usd::translate::MESH_CONVERT_CHANNEL_WARN_INVALID_INTERPOLATION);
+	CHECK(mesh_data.uvs.size() == 0);
 }
 
-TEST_CASE("mesh_convert: elementsize_primvar.usda succeeds with BAD_ELEMENT_SIZE warning") {
+TEST_CASE("mesh_convert: elementsize_primvar.usda succeeds with BAD_ELEMENT_SIZE warning, uvs dropped") {
 	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("elementsize_primvar.usda"));
 	REQUIRE(stage != nullptr);
 	auto mesh_data =
@@ -404,9 +432,10 @@ TEST_CASE("mesh_convert: elementsize_primvar.usda succeeds with BAD_ELEMENT_SIZE
 	CHECK(mesh_data.warn_flags == 0);
 	CHECK(mesh_data.normals_warn_flags == 0);
 	CHECK(mesh_data.uvs_warn_flags == godot_usd::translate::MESH_CONVERT_CHANNEL_WARN_BAD_ELEMENT_SIZE);
+	CHECK(mesh_data.uvs.size() == 0);
 }
 
-TEST_CASE("mesh_convert: oversized_primvar.usda succeeds with UNUSED_VALUES warning") {
+TEST_CASE("mesh_convert: oversized_primvar.usda succeeds with UNUSED_VALUES warning, uvs kept") {
 	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("oversized_primvar.usda"));
 	REQUIRE(stage != nullptr);
 	auto mesh_data =
@@ -415,6 +444,7 @@ TEST_CASE("mesh_convert: oversized_primvar.usda succeeds with UNUSED_VALUES warn
 	CHECK(mesh_data.warn_flags == 0);
 	CHECK(mesh_data.normals_warn_flags == 0);
 	CHECK(mesh_data.uvs_warn_flags == godot_usd::translate::MESH_CONVERT_CHANNEL_WARN_UNUSED_VALUES);
+	CHECK(!mesh_data.uvs.empty());
 }
 
 TEST_CASE("mesh_convert: blocked_normals.usda succeeds with NO_AUTHORED_VALUES warning") {
@@ -425,6 +455,7 @@ TEST_CASE("mesh_convert: blocked_normals.usda succeeds with NO_AUTHORED_VALUES w
 	CHECK(mesh_data.warn_flags == 0);
 	CHECK(mesh_data.uvs_warn_flags == 0);
 	CHECK(mesh_data.normals_warn_flags == godot_usd::translate::MESH_CONVERT_CHANNEL_WARN_NO_AUTHORED_VALUES);
+	CHECK(mesh_data.normals.size() == 0);
 }
 
 TEST_CASE("mesh_convert: no_normals_mesh.usda succeeds with DEGENERATE_FACES warning") {
@@ -435,6 +466,7 @@ TEST_CASE("mesh_convert: no_normals_mesh.usda succeeds with DEGENERATE_FACES war
 	CHECK(mesh_data.warn_flags == godot_usd::translate::MESH_CONVERT_WARN_DEGENERATE_FACES);
 	CHECK(mesh_data.uvs_warn_flags == 0);
 	CHECK(mesh_data.normals_warn_flags == 0);
+	CHECK(mesh_data.normals.size() == 0);
 }
 
 TEST_CASE("mesh_convert: empty_normals_array.usda succeeds with TRUNCATED_VALUES warning") {
@@ -446,10 +478,11 @@ TEST_CASE("mesh_convert: empty_normals_array.usda succeeds with TRUNCATED_VALUES
 	CHECK(mesh_data.warn_flags == 0);
 	CHECK(mesh_data.uvs_warn_flags == 0);
 	CHECK(mesh_data.normals_warn_flags == godot_usd::translate::MESH_CONVERT_CHANNEL_WARN_TRUNCATED_VALUES);
+	CHECK(mesh_data.normals.size() == 0);
 }
 
-TEST_CASE("mesh_convert: normals_precedence.usda succeeds with BAD_NORMALS_PRIMVAR warning and falls back to the "
-		  "`normals` attribute") {
+TEST_CASE("mesh_convert: normals_precedence.usda succeeds with BAD_NORMALS_PRIMVAR warning and normals values taken "
+		  "from the (non-primvar) `normals` attribute") {
 	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("normals_precedence.usda"));
 	REQUIRE(stage != nullptr);
 	auto mesh_data =
@@ -458,9 +491,13 @@ TEST_CASE("mesh_convert: normals_precedence.usda succeeds with BAD_NORMALS_PRIMV
 	CHECK(mesh_data.warn_flags == 0);
 	CHECK(mesh_data.uvs_warn_flags == 0);
 	CHECK(mesh_data.normals_warn_flags == godot_usd::translate::MESH_CONVERT_CHANNEL_WARN_BAD_NORMALS_PRIMVAR);
+	check_godot_v3_vectors_equal(
+			mesh_data.normals, std::vector<godot::Vector3>{godot::Vector3(0, 1, 0), godot::Vector3(0, 1, 0),
+									   godot::Vector3(0, 1, 0), godot::Vector3(0, 1, 0)});
 }
 
-TEST_CASE("mesh_convert: zero_normal_mesh.usda succeeds with ZERO_LENGTH_NORMAL warning") {
+TEST_CASE("mesh_convert: zero_normal_mesh.usda succeeds with ZERO_LENGTH_NORMAL warning and zero-length normal values "
+		  "replaced with (0, 1, 0)") {
 	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("zero_normal_mesh.usda"));
 	REQUIRE(stage != nullptr);
 	auto mesh_data = godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/ZeroNormal")));
@@ -468,4 +505,145 @@ TEST_CASE("mesh_convert: zero_normal_mesh.usda succeeds with ZERO_LENGTH_NORMAL 
 	CHECK(mesh_data.warn_flags == 0);
 	CHECK(mesh_data.uvs_warn_flags == 0);
 	CHECK(mesh_data.normals_warn_flags == godot_usd::translate::MESH_CONVERT_CHANNEL_WARN_ZERO_LENGTH_NORMAL);
+	check_godot_v3_vectors_equal(
+			mesh_data.normals, std::vector<godot::Vector3>{godot::Vector3(0, 1, 0), godot::Vector3(0, 1, 0),
+									   godot::Vector3(0, 1, 0), godot::Vector3(0, 1, 0)});
+}
+
+TEST_CASE("mesh_convert: faceVarying UV seam quads mesh converts with vertices split correctly") {
+	PXR_NS::VtArray<int> face_counts{4, 4};
+	PXR_NS::VtArray<int> face_indices{0, 1, 2, 3, 3, 2, 4, 5};
+	PXR_NS::VtArray<PXR_NS::GfVec3f> points{PXR_NS::GfVec3f(-2, 0, -1), PXR_NS::GfVec3f(-2, 0, 1),
+			PXR_NS::GfVec3f(0, 0, 1), PXR_NS::GfVec3f(0, 0, -1), PXR_NS::GfVec3f(2, 0, 1), PXR_NS::GfVec3f(2, 0, -1)};
+	PXR_NS::VtArray<PXR_NS::GfVec2f> uvs_values{PXR_NS::GfVec2f(0, 0), PXR_NS::GfVec2f(0, 1), PXR_NS::GfVec2f(.5, 1),
+			PXR_NS::GfVec2f(.5, 0), PXR_NS::GfVec2f(.75, 0), PXR_NS::GfVec2f(.75, 1), PXR_NS::GfVec2f(1, 1),
+			PXR_NS::GfVec2f(1, 0)};
+	auto uvs_params = godot_usd::translate::MeshChannelParams<PXR_NS::GfVec2f>{
+			godot_usd::translate::InterpolationMode::FACE_VARYING, uvs_values};
+
+	auto mesh_data = godot_usd::translate::to_mesh_data(face_counts, face_indices, points, std::nullopt, uvs_params);
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == 0);
+	CHECK(mesh_data.uvs_warn_flags == 0);
+	CHECK(mesh_data.positions.size() == 8);
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3, 6, 7, 4, 6, 4, 5});
+	check_godot_v2_vectors_equal(
+			mesh_data.uvs, std::vector<godot::Vector2>{godot::Vector2(0, 1), godot::Vector2(0, 0),
+								   godot::Vector2(.5, 0), godot::Vector2(.5, 1), godot::Vector2(1, 0),
+								   godot::Vector2(1, 1), godot::Vector2(.75, 1), godot::Vector2(.75, 0)});
+}
+
+TEST_CASE("mesh_convert: quad mesh with a degenerate face converts with DEGENERATE_FACES warning and orphaned points "
+		  "compacted away") {
+	PXR_NS::VtArray<int> face_counts{4, 2};
+	PXR_NS::VtArray<int> face_indices{0, 1, 2, 3, 4, 5};
+	PXR_NS::VtArray<PXR_NS::GfVec3f> points{PXR_NS::GfVec3f(1, 0, 1), PXR_NS::GfVec3f(1, 0, 3),
+			PXR_NS::GfVec3f(3, 0, 3), PXR_NS::GfVec3f(3, 0, 1), PXR_NS::GfVec3f(100, 0, 100),
+			PXR_NS::GfVec3f(-100, 0, -100)};
+
+	auto mesh_data = godot_usd::translate::to_mesh_data(face_counts, face_indices, points, std::nullopt, std::nullopt);
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == godot_usd::translate::MESH_CONVERT_WARN_DEGENERATE_FACES);
+	CHECK(mesh_data.positions.size() == 4);
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3});
+}
+
+TEST_CASE("mesh_convert: faceVarying UV/normal seam quads mesh with unreferenced points converts with vertices "
+		  "split correctly, orphaned points compacted away") {
+	PXR_NS::VtArray<int> face_counts{4, 4};
+	PXR_NS::VtArray<int> face_indices{0, 1, 2, 3, 3, 2, 4, 5};
+	PXR_NS::VtArray<PXR_NS::GfVec3f> points{PXR_NS::GfVec3f(-2, 0, -1), PXR_NS::GfVec3f(-2, 0, 1),
+			PXR_NS::GfVec3f(0, 0, 1), PXR_NS::GfVec3f(0, 0, -1), PXR_NS::GfVec3f(2, 0, 1), PXR_NS::GfVec3f(2, 0, -1),
+			PXR_NS::GfVec3f(100, 0, 100), PXR_NS::GfVec3f(100, 0, 100)};
+	PXR_NS::VtArray<PXR_NS::GfVec3f> normals_values{PXR_NS::GfVec3f(1, 0, 0), PXR_NS::GfVec3f(0, 1, 0),
+			PXR_NS::GfVec3f(0, 0, 1), PXR_NS::GfVec3f(-1, 0, 0), PXR_NS::GfVec3f(0, -1, 0), PXR_NS::GfVec3f(0, 0, -1),
+			PXR_NS::GfVec3f(0.6, 0.8, 0), PXR_NS::GfVec3f(0.8, 0.6, 0)};
+	auto normals_params = godot_usd::translate::MeshChannelParams<PXR_NS::GfVec3f>{
+			godot_usd::translate::InterpolationMode::FACE_VARYING, normals_values};
+	PXR_NS::VtArray<PXR_NS::GfVec2f> uvs_values{PXR_NS::GfVec2f(0, 0), PXR_NS::GfVec2f(0, 1), PXR_NS::GfVec2f(.5, 1),
+			PXR_NS::GfVec2f(.5, 0), PXR_NS::GfVec2f(.75, 0), PXR_NS::GfVec2f(.75, 1), PXR_NS::GfVec2f(1, 1),
+			PXR_NS::GfVec2f(1, 0)};
+	auto uvs_params = godot_usd::translate::MeshChannelParams<PXR_NS::GfVec2f>{
+			godot_usd::translate::InterpolationMode::FACE_VARYING, uvs_values};
+
+	auto mesh_data = godot_usd::translate::to_mesh_data(face_counts, face_indices, points, normals_params, uvs_params);
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == 0);
+	CHECK(mesh_data.normals_warn_flags == 0);
+	CHECK(mesh_data.uvs_warn_flags == 0);
+	CHECK(mesh_data.positions.size() == 8);
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3, 6, 7, 4, 6, 4, 5});
+	check_godot_v3_vectors_equal(mesh_data.normals,
+			std::vector<godot::Vector3>{godot::Vector3(1, 0, 0), godot::Vector3(0, 1, 0), godot::Vector3(0, 0, 1),
+					godot::Vector3(-1, 0, 0), godot::Vector3(0.6, 0.8, 0), godot::Vector3(0.8, 0.6, 0),
+					godot::Vector3(0, -1, 0), godot::Vector3(0, 0, -1)});
+	check_godot_v2_vectors_equal(
+			mesh_data.uvs, std::vector<godot::Vector2>{godot::Vector2(0, 1), godot::Vector2(0, 0),
+								   godot::Vector2(.5, 0), godot::Vector2(.5, 1), godot::Vector2(1, 0),
+								   godot::Vector2(1, 1), godot::Vector2(.75, 1), godot::Vector2(.75, 0)});
+	check_godot_v3_vectors_equal(
+			mesh_data.positions, std::vector<godot::Vector3>{godot::Vector3(-2, 0, -1), godot::Vector3(-2, 0, 1),
+										 godot::Vector3(0, 0, 1), godot::Vector3(0, 0, -1), godot::Vector3(2, 0, 1),
+										 godot::Vector3(2, 0, -1), godot::Vector3(0, 0, -1), godot::Vector3(0, 0, 1)});
+}
+
+TEST_CASE("mesh_convert: faceVarying UV shared edge quads mesh converts correctly, shared vertices with identical UV "
+		  "values not split") {
+	PXR_NS::VtArray<int> face_counts{4, 4};
+	PXR_NS::VtArray<int> face_indices{0, 1, 2, 3, 3, 2, 4, 5};
+	PXR_NS::VtArray<PXR_NS::GfVec3f> points{PXR_NS::GfVec3f(-2, 0, -1), PXR_NS::GfVec3f(-2, 0, 1),
+			PXR_NS::GfVec3f(0, 0, 1), PXR_NS::GfVec3f(0, 0, -1), PXR_NS::GfVec3f(2, 0, 1), PXR_NS::GfVec3f(2, 0, -1)};
+	PXR_NS::VtArray<PXR_NS::GfVec2f> uvs_values{PXR_NS::GfVec2f(0, 0), PXR_NS::GfVec2f(0, 1), PXR_NS::GfVec2f(.5, 1),
+			PXR_NS::GfVec2f(.5, 0), PXR_NS::GfVec2f(.5, 0), PXR_NS::GfVec2f(.5, 1), PXR_NS::GfVec2f(1, 1),
+			PXR_NS::GfVec2f(1, 0)};
+	auto uvs_params = godot_usd::translate::MeshChannelParams<PXR_NS::GfVec2f>{
+			godot_usd::translate::InterpolationMode::FACE_VARYING, uvs_values};
+
+	auto mesh_data = godot_usd::translate::to_mesh_data(face_counts, face_indices, points, std::nullopt, uvs_params);
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == 0);
+	CHECK(mesh_data.uvs_warn_flags == 0);
+	CHECK(mesh_data.positions.size() == 6);
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3, 3, 2, 4, 3, 4, 5});
+	check_godot_v2_vectors_equal(mesh_data.uvs,
+			std::vector<godot::Vector2>{godot::Vector2(0, 1), godot::Vector2(0, 0), godot::Vector2(.5, 0),
+					godot::Vector2(.5, 1), godot::Vector2(1, 0), godot::Vector2(1, 1)});
+}
+
+TEST_CASE("mesh_convert: faceVarying UV/normal shared edge quads mesh converts correctly, shared vertices with "
+		  "identical UVs but differing normals split") {
+	PXR_NS::VtArray<int> face_counts{4, 4};
+	PXR_NS::VtArray<int> face_indices{0, 1, 2, 3, 3, 2, 4, 5};
+	PXR_NS::VtArray<PXR_NS::GfVec3f> points{PXR_NS::GfVec3f(-2, 0, -1), PXR_NS::GfVec3f(-2, 0, 1),
+			PXR_NS::GfVec3f(0, 0, 1), PXR_NS::GfVec3f(0, 0, -1), PXR_NS::GfVec3f(2, 0, 1), PXR_NS::GfVec3f(2, 0, -1)};
+	PXR_NS::VtArray<PXR_NS::GfVec3f> normals_values{PXR_NS::GfVec3f(1, 0, 0), PXR_NS::GfVec3f(0, 1, 0),
+			PXR_NS::GfVec3f(0, 0, 1), PXR_NS::GfVec3f(-1, 0, 0), PXR_NS::GfVec3f(0, -1, 0), PXR_NS::GfVec3f(0, 0, -1),
+			PXR_NS::GfVec3f(0.6, 0.8, 0), PXR_NS::GfVec3f(0.8, 0.6, 0)};
+	auto normals_params = godot_usd::translate::MeshChannelParams<PXR_NS::GfVec3f>{
+			godot_usd::translate::InterpolationMode::FACE_VARYING, normals_values};
+	PXR_NS::VtArray<PXR_NS::GfVec2f> uvs_values{PXR_NS::GfVec2f(0, 0), PXR_NS::GfVec2f(0, 1), PXR_NS::GfVec2f(.5, 1),
+			PXR_NS::GfVec2f(.5, 0), PXR_NS::GfVec2f(.5, 0), PXR_NS::GfVec2f(.5, 1), PXR_NS::GfVec2f(1, 1),
+			PXR_NS::GfVec2f(1, 0)};
+	auto uvs_params = godot_usd::translate::MeshChannelParams<PXR_NS::GfVec2f>{
+			godot_usd::translate::InterpolationMode::FACE_VARYING, uvs_values};
+
+	auto mesh_data = godot_usd::translate::to_mesh_data(face_counts, face_indices, points, normals_params, uvs_params);
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == 0);
+	CHECK(mesh_data.normals_warn_flags == 0);
+	CHECK(mesh_data.uvs_warn_flags == 0);
+	CHECK(mesh_data.positions.size() == 8);
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3, 6, 7, 4, 6, 4, 5});
+	check_godot_v3_vectors_equal(mesh_data.normals,
+			std::vector<godot::Vector3>{godot::Vector3(1, 0, 0), godot::Vector3(0, 1, 0), godot::Vector3(0, 0, 1),
+					godot::Vector3(-1, 0, 0), godot::Vector3(0.6, 0.8, 0), godot::Vector3(0.8, 0.6, 0),
+					godot::Vector3(0, -1, 0), godot::Vector3(0, 0, -1)});
+	check_godot_v2_vectors_equal(
+			mesh_data.uvs, std::vector<godot::Vector2>{godot::Vector2(0, 1), godot::Vector2(0, 0),
+								   godot::Vector2(.5, 0), godot::Vector2(.5, 1), godot::Vector2(1, 0),
+								   godot::Vector2(1, 1), godot::Vector2(.5, 1), godot::Vector2(.5, 0)});
+	check_godot_v3_vectors_equal(
+			mesh_data.positions, std::vector<godot::Vector3>{godot::Vector3(-2, 0, -1), godot::Vector3(-2, 0, 1),
+										 godot::Vector3(0, 0, 1), godot::Vector3(0, 0, -1), godot::Vector3(2, 0, 1),
+										 godot::Vector3(2, 0, -1), godot::Vector3(0, 0, -1), godot::Vector3(0, 0, 1)});
 }

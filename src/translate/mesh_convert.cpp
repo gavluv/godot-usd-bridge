@@ -1,6 +1,7 @@
 #include "mesh_convert.h"
 
 #include <godot_cpp/variant/vector3.hpp>
+#include <godot_cpp/templates/hashfuncs.hpp>
 
 #include <pxr/base/vt/array.h>
 #include <pxr/usd/usdGeom/mesh.h>
@@ -10,8 +11,35 @@
 
 #include <vector>
 #include <utility>
+#include <unordered_map>
 
 namespace godot_usd::translate {
+
+struct VertexKey {
+	// position is keyed by index because points have no interpolation mode
+	int32_t point_index;
+	godot::Vector3 normal;
+	godot::Vector2 uv;
+};
+
+// Using Godot hash functions and comparators with std::unordered_map instead of godot::HashMap;
+// see comment on `vertex_hash_map` in `to_mesh_data()` below and ADR-006.
+struct VertexKeyHasher {
+	size_t operator()(const VertexKey &key) const {
+		uint32_t h = godot::hash_murmur3_one_32(key.point_index);
+		h = godot::hash_murmur3_one_32(godot::HashMapHasherDefault::hash(key.normal), h);
+		h = godot::hash_murmur3_one_32(godot::HashMapHasherDefault::hash(key.uv), h);
+		return godot::hash_fmix32(h);
+	}
+};
+
+struct VertexKeyComparator {
+	bool operator()(const VertexKey &p_lhs, const VertexKey &p_rhs) const {
+		return p_lhs.point_index == p_rhs.point_index &&
+			   godot::HashMapComparatorDefault<godot::Vector3>::compare(p_lhs.normal, p_rhs.normal) &&
+			   godot::HashMapComparatorDefault<godot::Vector2>::compare(p_lhs.uv, p_rhs.uv);
+	}
+};
 
 MeshConvertError map_corners_to_points(
 		std::vector<int32_t> &r_tri_indices, const PXR_NS::VtArray<int> &p_face_vertex_indices, size_t p_point_count) {
@@ -107,13 +135,108 @@ MeshData to_mesh_data(const PXR_NS::VtArray<int> &p_face_vertex_counts,
 		return mesh_data;
 	}
 
-	auto positions = std::vector<godot::Vector3>(point_count);
+	// split vertices and dedup
 
-	for (size_t i = 0; i < p_points.size(); i++) {
-		positions[i] = godot::Vector3(p_points[i][0], p_points[i][1], p_points[i][2]);
+	// Using std::unordered_map instead of godot::HashMap because the latter compiles fine but segfaults
+	// the test exe; godot-cpp's templates/ containers allocate via memnew -> Memory::alloc_static ->
+	// gdextension_interface::mem_alloc, which is a null function pointer without the Godot engine present.
+	// Godot's hash functions and comparators are safe without the engine, handle -0.0 and NaN equality,
+	// and should stay paired; see ADR-006.
+	auto vertex_hash_map = std::unordered_map<VertexKey, int32_t, VertexKeyHasher, VertexKeyComparator>();
+	vertex_hash_map.reserve(point_count);
+	auto seen_vertices = std::vector<uint8_t>(point_count, false);
+	int32_t next_append_index = point_count;
+	size_t used_point_count = 0;
+
+	mesh_data.positions = std::vector<godot::Vector3>(point_count);
+
+	if (normals_valid) {
+		mesh_data.normals = std::vector<godot::Vector3>(point_count, godot::Vector3(0, 1, 0));
 	}
 
-	mesh_data.positions = std::move(positions);
+	if (uvs_valid) {
+		mesh_data.uvs = std::vector<godot::Vector2>(point_count);
+	}
+
+	for (size_t i = 0; i < triangles.size(); ++i) {
+		auto key = VertexKey{triangles[i], normals_valid ? normals_values[normals_indices[i]] : godot::Vector3(),
+				uvs_valid ? uvs_values[uvs_indices[i]] : godot::Vector2()};
+
+		int32_t tri = triangles[i];
+
+		auto [it, inserted] = vertex_hash_map.try_emplace(key, -1);
+
+		if (!inserted) {
+			// vertex already in vertex_hash_map -> remap current tri index
+			tri = it->second;
+		} else if (seen_vertices[tri]) {
+			// unique vertex, point index already taken -> append
+			mesh_data.positions.push_back(godot::Vector3(p_points[tri][0], p_points[tri][1], p_points[tri][2]));
+			if (normals_valid) {
+				mesh_data.normals.push_back(normals_values[normals_indices[i]]);
+			}
+			if (uvs_valid) {
+				mesh_data.uvs.push_back(uvs_values[uvs_indices[i]]);
+			}
+
+			tri = next_append_index;
+			it->second = tri;
+			next_append_index++;
+		} else {
+			// unique vertex, point not seen -> insert at triangles[i]
+			mesh_data.positions[tri] = godot::Vector3(p_points[tri][0], p_points[tri][1], p_points[tri][2]);
+			if (normals_valid) {
+				mesh_data.normals[tri] = normals_values[normals_indices[i]];
+			}
+			if (uvs_valid) {
+				mesh_data.uvs[tri] = uvs_values[uvs_indices[i]];
+			}
+
+			seen_vertices[tri] = true;
+			used_point_count++;
+			it->second = tri;
+		}
+
+		triangles[i] = tri;
+	}
+
+	if (used_point_count != point_count) {
+		// remove vertices in range [0, point_count) not referenced by any triangle
+
+		auto remap_tris = std::vector<int32_t>(mesh_data.positions.size());
+
+		size_t new_i = 0;
+		for (size_t old_i = 0; old_i < mesh_data.positions.size(); ++old_i) {
+			if (old_i >= point_count || seen_vertices[old_i]) {
+				remap_tris[old_i] = new_i;
+				if (new_i != old_i) {
+					mesh_data.positions[new_i] = mesh_data.positions[old_i];
+					if (normals_valid) {
+						mesh_data.normals[new_i] = mesh_data.normals[old_i];
+					}
+					if (uvs_valid) {
+						mesh_data.uvs[new_i] = mesh_data.uvs[old_i];
+					}
+				}
+				new_i++;
+			} else {
+				remap_tris[old_i] = -1;
+			}
+		}
+
+		mesh_data.positions.resize(new_i);
+		if (normals_valid) {
+			mesh_data.normals.resize(new_i);
+		}
+		if (uvs_valid) {
+			mesh_data.uvs.resize(new_i);
+		}
+
+		for (size_t i = 0; i < triangles.size(); ++i) {
+			triangles[i] = remap_tris[triangles[i]];
+		}
+	}
+
 	mesh_data.triangles = std::move(triangles);
 
 	if (mesh_data.triangles.empty()) {
