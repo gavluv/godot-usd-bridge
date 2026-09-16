@@ -1,0 +1,64 @@
+#usda 1.0
+(
+    doc = """Mesh-import fixture (task 1.4): faceVarying UVs that AGREE across a
+    shared edge, and so must NOT split.
+
+    The twin of fv_uv_seam_quads.usda. Same topology, same faceVarying
+    interpolation, same number of authored st values -- only the values differ.
+    That one splits to 8 vertices; this one collapses back to 6.
+
+    TOPOLOGY (identical to fv_uv_seam_quads.usda and shared_edge_quads.usda)
+      points            6 entries
+      faceVertexCounts  [4, 4]
+      faceVertexIndices [0, 1, 2, 3,  3, 2, 4, 5]
+
+    THE NON-SEAM
+        corner : 0      1      2        3        4        5        6      7
+        point  : 0      1      2        3        3        2        4      5
+        st     : (0,0) (0,1) (.5,1)  (.5,0)  (.5,0)  (.5,1)  (1,1)  (1,0)
+                                        ^^^^^^^^^^^^^^^^^
+                        corners 3 and 4 are both point 3, with the SAME UV
+                        corners 2 and 5 are both point 2, with the SAME UV
+
+      The UVs are continuous across the middle edge, so the shared points stay
+      one vertex each even though the primvar is per-corner.
+
+    EXPECTED
+      - 6 vertices, not 8. The dedup key for corners 3 and 4 is identical, so
+        the second one reuses the vertex the first created; likewise 2 and 5.
+      - 12 indices, [0, 1, 2,  0, 2, 3,  3, 2, 4,  3, 4, 5]
+        -- byte-identical to shared_edge_quads.usda's expected output
+      - AABB spans (-2, 0, -1) to (2, 0, 1)
+      - warn_flags == 0
+
+    DETECTOR: this catches a splitter that splits unconditionally -- one that
+    emits a vertex per corner whenever a faceVarying channel is present, without
+    comparing values. Such an implementation passes fv_uv_seam_quads.usda (8 is
+    the right answer there) and fails here with 8 instead of 6.
+
+    That bug class is invisible by eye: the mesh renders correctly either way,
+    because the duplicated vertices carry identical attributes. Only the counts
+    reveal it, which is why this fixture asserts them rather than an AABB.
+
+    CONTRAST: shared_edge_quads.usda has this topology and NO primvars at all,
+    so it reaches 6 vertices without the dedup ever comparing a UV. This fixture
+    reaches the same 6 through the dedup, with values that had to be compared to
+    get there."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Mesh "FvUvSharedQuads"
+    {
+        float3[] extent = [(-2, 0, -1), (2, 0, 1)]
+        int[] faceVertexCounts = [4, 4]
+        int[] faceVertexIndices = [0, 1, 2, 3, 3, 2, 4, 5]
+        point3f[] points = [(-2, 0, -1), (-2, 0, 1), (0, 0, 1), (0, 0, -1), (2, 0, 1), (2, 0, -1)]
+        texCoord2f[] primvars:st = [(0, 0), (0, 1), (0.5, 1), (0.5, 0), (0.5, 0), (0.5, 1), (1, 1), (1, 0)] (
+            interpolation = "faceVarying"
+        )
+    }
+}

@@ -1,0 +1,76 @@
+#usda 1.0
+(
+    doc = """Mesh-import fixture (task 1.4): a UV seam AND unreferenced points in
+    the same mesh, so that vertex splitting and compaction interact.
+
+    This is fv_uv_seam_quads.usda with two extra points appended to the points
+    array and referenced by nothing. Everything else -- counts, indices, st --
+    is identical.
+
+    WHY IT EXISTS
+      Splitting appends vertices past the end of the point range; compaction
+      removes unclaimed slots inside it. Each of the other fixtures exercises
+      exactly one of those:
+
+        fv_uv_seam_quads    seam, no orphans  -> nothing to compact
+        fv_uv_shared_quads  neither           -> nothing to compact
+        partial_orphan_mesh orphans, no seam  -> nothing appended
+
+      Only a mesh with both walks a remap over indices that run past
+      point_count. Nothing else in the corpus reaches that code.
+
+    TOPOLOGY
+      points            8 entries -- 0..5 as in fv_uv_seam_quads, plus two more
+      faceVertexCounts  [4, 4]
+      faceVertexIndices [0, 1, 2, 3,  3, 2, 4, 5]
+
+      Points 6 and 7 appear in the points array and in NO face. That is legal
+      USD: nothing requires every point to be referenced. sum(faceVertexCounts)
+      still equals faceVertexIndices.size(), so the topology is consistent and
+      no unused-indices warning fires.
+
+      st is faceVarying with the same seam as fv_uv_seam_quads: corners 3 and 4
+      are both point 3 with different UVs, likewise corners 2 and 5 for point 2.
+
+    EXPECTED -- identical to fv_uv_seam_quads.usda
+      - 8 vertices, 12 indices, [0, 1, 2,  0, 2, 3,  6, 7, 4,  6, 4, 5]
+      - the same positions and the same UVs, in the same order
+      - warn_flags == 0 and uvs_warn_flags == 0
+      - AABB spans (-2, 0, -1) to (2, 0, 1)
+
+      That the two files agree exactly IS the assertion: two authored points
+      that no face uses must leave no trace in the output.
+
+      Getting there is not the same journey, though. Before compaction the
+      vertex arrays hold 10 entries -- 8 point slots (two unclaimed) plus 2
+      appended split vertices at indices 8 and 9 -- and compaction has to drop
+      slots 6 and 7 while pulling the appends down into 6 and 7.
+
+    DETECTOR: a remap array sized to the point count rather than to the full
+    vertex count writes out of bounds for every appended vertex. That is a heap
+    write, not a read, so its symptoms are arbitrary and may not appear near the
+    conversion at all.
+
+    NOT A DETECTOR HERE: the AABB. Unclaimed slots hold the zero vector, which
+    falls inside this mesh's bounds, so a failure to compact does not move it.
+    The vertex count is what discriminates. partial_orphan_mesh.usda covers the
+    AABB angle -- its geometry deliberately avoids the origin so that orphans
+    inflate the bound."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Mesh "FvUvSeamOrphanQuads"
+    {
+        float3[] extent = [(-100, 0, -100), (100, 0, 100)]
+        int[] faceVertexCounts = [4, 4]
+        int[] faceVertexIndices = [0, 1, 2, 3, 3, 2, 4, 5]
+        point3f[] points = [(-2, 0, -1), (-2, 0, 1), (0, 0, 1), (0, 0, -1), (2, 0, 1), (2, 0, -1), (100, 0, 100), (-100, 0, -100)]
+        texCoord2f[] primvars:st = [(0, 0), (0, 1), (0.5, 1), (0.5, 0), (0.75, 0), (0.75, 1), (1, 1), (1, 0)] (
+            interpolation = "faceVarying"
+        )
+    }
+}

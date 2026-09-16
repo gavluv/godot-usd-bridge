@@ -1,0 +1,76 @@
+#usda 1.0
+(
+    doc = """Mesh-import fixture (task 1.4): a mesh that produces geometry AND
+    leaves points unreferenced, so compaction has something to remove.
+
+    degenerate_mesh.usda is entirely degenerate and produces no surface at all,
+    which means the compaction pass is unobservable there. This file has one
+    real face and one degenerate one, so it converts successfully while still
+    carrying orphan points.
+
+    TOPOLOGY
+      points            6 entries
+      faceVertexCounts  [4, 2]              -> 4 + 2 = 6 corners
+      faceVertexIndices [0, 1, 2, 3,  4, 5]
+
+      Face 0 is a quad over points 0..3 and produces two triangles.
+      Face 1 has two corners, so it produces none (a face needs 3+). Points 4
+      and 5 are referenced ONLY by that face, so no triangle ever reaches them:
+      they are orphans.
+
+      Note sum(faceVertexCounts) == 6 == faceVertexIndices.size(), so the
+      topology is internally consistent -- this is legal USD, not a defect.
+
+    GEOMETRY PLACEMENT
+      The quad sits at x,z in [1, 3] and so does NOT contain the origin, and the
+      orphan points sit far outside it. Both choices are deliberate: they make
+      the AABB discriminate whether or not orphan slots were dropped, under
+      either reading of what an unclaimed slot holds (its authored position, or
+      the zero-initialised default).
+
+    EXPECTED
+      - conversion SUCCEEDS
+      - warn_flags has MESH_CONVERT_WARN_DEGENERATE_FACES set, from face 1.
+        No unused-indices warning: the counts and the index array agree.
+      - 4 vertices, not 6. Slots 0..3 are claimed by the quad's corners; slots
+        4 and 5 are never claimed and compaction removes them.
+      - 6 indices, [0, 1, 2, 0, 2, 3] -- unchanged by the remap, because the
+        removed slots sit after every surviving one
+      - AABB spans (1, 0, 1) to (3, 0, 3)
+
+    DETECTOR: without compaction the surface carries 6 vertices, two of which
+    nothing indexes -- and because Godot computes a surface's AABB over the
+    whole ARRAY_VERTEX rather than the vertices the index array reaches
+    (verified on 4.6.3), those unclaimed slots also inflate the bounding box
+    and the culling bound with it. Both the vertex count and the AABB move, so
+    either assertion catches it.
+
+    Note it is the SLOTS that inflate the bound, not the orphan points. The
+    implementation leaves unclaimed slots zero-initialised rather than filling
+    them with their authored positions, so an uncompacted surface here reaches
+    (0, 0, 0) and the AABB becomes (0, 0, 0) to (3, 0, 3). The quad is placed
+    away from the origin for exactly that reason.
+
+    fv_uv_seam_orphan_quads.usda also carries orphans and also fails on the
+    vertex count if compaction is removed, so this file is not the only one
+    that catches it. It is the only one whose AABB does: that mesh's bounds
+    already contain the origin, so its zero-filled slots do not move them.
+
+    CONTRAST with degenerate_mesh.usda: same class of legal-but-partly-useless
+    topology, but that one produces no surface, so it exercises the no-geometry
+    path instead of the compaction path."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Mesh "PartialOrphan"
+    {
+        float3[] extent = [(-100, 0, -100), (100, 0, 100)]
+        int[] faceVertexCounts = [4, 2]
+        int[] faceVertexIndices = [0, 1, 2, 3, 4, 5]
+        point3f[] points = [(1, 0, 1), (1, 0, 3), (3, 0, 3), (3, 0, 1), (100, 0, 100), (-100, 0, -100)]
+    }
+}

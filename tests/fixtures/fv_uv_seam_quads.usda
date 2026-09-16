@@ -1,0 +1,70 @@
+#usda 1.0
+(
+    doc = """Mesh-import fixture (task 1.4): a faceVarying UV seam, where two
+    shared points must SPLIT into four vertices.
+
+    Topology is identical to shared_edge_quads.usda on purpose. The only
+    difference is the st primvar. Its twin, fv_uv_shared_quads.usda, uses this
+    same topology with UVs that MATCH across the seam and must collapse back to
+    6 vertices. Read the two together: the pair is the core of task 1.4.
+
+    TOPOLOGY (identical to shared_edge_quads.usda)
+      points            6 entries, two quads side by side in the XZ plane
+      faceVertexCounts  [4, 4]
+      faceVertexIndices [0, 1, 2, 3,  3, 2, 4, 5]
+
+      Points 2 and 3 are shared: they are the middle edge, used by both faces.
+
+    THE SEAM
+      st is faceVarying, so it carries one value per CORNER, not per point:
+
+        corner : 0      1      2        3        4        5        6      7
+        point  : 0      1      2        3        3        2        4      5
+        st     : (0,0) (0,1) (.5,1)  (.5,0)  (.75,0)  (.75,1)  (1,1)  (1,0)
+                                        ^^^^^^^^^^^^^^^^^^^^
+                        corners 3 and 4 are both point 3, with DIFFERENT UVs
+                        corners 2 and 5 are both point 2, with DIFFERENT UVs
+
+      That is a UV seam: the two faces belong to different islands in UV space,
+      so the shared points cannot be one vertex each.
+
+    EXPECTED
+      - 8 vertices. Slots 0..5 are the USD points in order; points 3 and 2 each
+        split, appending vertices 6 and 7 respectively (in that order, because
+        the split for point 3 is reached first, at triangle-list entry 6).
+      - 12 indices, [0, 1, 2,  0, 2, 3,  6, 7, 4,  6, 4, 5]
+      - no orphans, so compaction is a no-op and the numbering above survives
+      - AABB spans (-2, 0, -1) to (2, 0, 1) -- the appended vertices duplicate
+        existing positions, so the bounds do not move
+      - warn_flags == 0
+
+      UVs after the V-flip (st (u,v) becomes (u, 1-v)):
+        vertex : 0      1      2       3       4      5      6        7
+        uv     : (0,1) (0,0) (.5,0)  (.5,1)  (1,0)  (1,1)  (.75,1)  (.75,0)
+
+    DETECTOR: this is the fixture that fails if faceVarying values are read
+    per-point instead of per-corner. An importer that keys UVs by point index
+    produces 6 vertices here -- the same as shared_edge_quads.usda, which has no
+    UVs at all. The seam simply disappears, and the mesh still renders, just
+    with the wrong texture mapping across the middle edge.
+
+    It also catches a dedup that never appends: the split vertices are 6 and 7,
+    which only exist because two corners at the same point disagreed."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Mesh "FvUvSeamQuads"
+    {
+        float3[] extent = [(-2, 0, -1), (2, 0, 1)]
+        int[] faceVertexCounts = [4, 4]
+        int[] faceVertexIndices = [0, 1, 2, 3, 3, 2, 4, 5]
+        point3f[] points = [(-2, 0, -1), (-2, 0, 1), (0, 0, 1), (0, 0, -1), (2, 0, 1), (2, 0, -1)]
+        texCoord2f[] primvars:st = [(0, 0), (0, 1), (0.5, 1), (0.5, 0), (0.75, 0), (0.75, 1), (1, 1), (1, 0)] (
+            interpolation = "faceVarying"
+        )
+    }
+}
