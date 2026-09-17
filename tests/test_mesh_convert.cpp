@@ -647,3 +647,72 @@ TEST_CASE("mesh_convert: faceVarying UV/normal shared edge quads mesh converts c
 										 godot::Vector3(0, 0, 1), godot::Vector3(0, 0, -1), godot::Vector3(2, 0, 1),
 										 godot::Vector3(2, 0, -1), godot::Vector3(0, 0, -1), godot::Vector3(0, 0, 1)});
 }
+
+TEST_CASE("mesh_convert: fv_uv_seam_quads.usda converts with vertices split correctly") {
+	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("fv_uv_seam_quads.usda"));
+	REQUIRE(stage != nullptr);
+	auto mesh_data = godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/FvUvSeamQuads")));
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == 0);
+	CHECK(mesh_data.normals_warn_flags == 0);
+	CHECK(mesh_data.uvs_warn_flags == 0);
+	CHECK(mesh_data.positions.size() == 8);
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3, 6, 7, 4, 6, 4, 5});
+	check_godot_v2_vectors_equal(
+			mesh_data.uvs, std::vector<godot::Vector2>{godot::Vector2(0, 1), godot::Vector2(0, 0),
+								   godot::Vector2(.5, 0), godot::Vector2(.5, 1), godot::Vector2(1, 0),
+								   godot::Vector2(1, 1), godot::Vector2(.75, 1), godot::Vector2(.75, 0)});
+}
+
+TEST_CASE("mesh_convert: partial_orphan_mesh.usda converts with DEGENERATE_FACES warning and orphaned points "
+		  "compacted away") {
+	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("partial_orphan_mesh.usda"));
+	REQUIRE(stage != nullptr);
+	auto mesh_data = godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/PartialOrphan")));
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == godot_usd::translate::MESH_CONVERT_WARN_DEGENERATE_FACES);
+	// This mesh authors no normals, but the fallback from primvars:normals to the `normals` attribute
+	// runs for every mesh regardless, so a spurious warning is reachable here. The UV block is gated
+	// behind HasPrimvar(st), so uvs_warn_flags has no reachable failure and is not asserted.
+	CHECK(mesh_data.normals_warn_flags == 0);
+	CHECK(mesh_data.positions.size() == 4);
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3});
+}
+
+TEST_CASE("mesh_convert: fv_uv_seam_orphan_quads.usda converts with vertices split correctly, orphaned points "
+		  "compacted away") {
+	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("fv_uv_seam_orphan_quads.usda"));
+	REQUIRE(stage != nullptr);
+	auto mesh_data =
+			godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/FvUvSeamOrphanQuads")));
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == 0);
+	CHECK(mesh_data.normals_warn_flags == 0);
+	CHECK(mesh_data.uvs_warn_flags == 0);
+	CHECK(mesh_data.positions.size() == 8);
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3, 6, 7, 4, 6, 4, 5});
+	check_godot_v2_vectors_equal(
+			mesh_data.uvs, std::vector<godot::Vector2>{godot::Vector2(0, 1), godot::Vector2(0, 0),
+								   godot::Vector2(.5, 0), godot::Vector2(.5, 1), godot::Vector2(1, 0),
+								   godot::Vector2(1, 1), godot::Vector2(.75, 1), godot::Vector2(.75, 0)});
+	check_godot_v3_vectors_equal(
+			mesh_data.positions, std::vector<godot::Vector3>{godot::Vector3(-2, 0, -1), godot::Vector3(-2, 0, 1),
+										 godot::Vector3(0, 0, 1), godot::Vector3(0, 0, -1), godot::Vector3(2, 0, 1),
+										 godot::Vector3(2, 0, -1), godot::Vector3(0, 0, -1), godot::Vector3(0, 0, 1)});
+}
+
+TEST_CASE("mesh_convert: fv_uv_shared_quads.usda converts correctly, shared vertices with identical UV values not "
+		  "split") {
+	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("fv_uv_shared_quads.usda"));
+	REQUIRE(stage != nullptr);
+	auto mesh_data = godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/FvUvSharedQuads")));
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == 0);
+	CHECK(mesh_data.normals_warn_flags == 0);
+	CHECK(mesh_data.uvs_warn_flags == 0);
+	CHECK(mesh_data.positions.size() == 6);
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3, 3, 2, 4, 3, 4, 5});
+	check_godot_v2_vectors_equal(mesh_data.uvs,
+			std::vector<godot::Vector2>{godot::Vector2(0, 1), godot::Vector2(0, 0), godot::Vector2(.5, 0),
+					godot::Vector2(.5, 1), godot::Vector2(1, 0), godot::Vector2(1, 1)});
+}
