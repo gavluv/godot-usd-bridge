@@ -215,8 +215,12 @@ graph.
    this step. It builds no C++; regular builds still go through the VS presets.
 3. Reload the editor. The committed `.clangd` points clangd at `build/tooling`.
 
-**Rerun `gen_compile_commands.ps1`** after adding/removing a source file or
-bumping the godot-cpp pin, so the include set and generated headers stay current.
+**Rerun `gen_compile_commands.ps1`** after adding/removing a source file,
+changing compile flags or include paths in `CMakeLists.txt`, or bumping the
+godot-cpp pin, so the include set, flags, and generated headers stay current.
+Flag changes matter as much as file changes: the database records the full
+command line, so a stale one silently drops things like the `platform_fixup.h`
+force-include (see Troubleshooting).
 
 Notes:
 - clangd normally finds the MSVC/Windows-SDK system headers on its own. If
@@ -227,6 +231,17 @@ Notes:
 
 ## Troubleshooting
 
+- **Editor errors on a `godot_cpp/...` include while `cmake --build` is clean**
+  (often naming `CONNECT_DEFERRED` or `ConnectFlags`) — the compile database is
+  stale, so clangd is parsing that file without the `platform_fixup.h`
+  force-include and the `windows.h` macro collisions are back in the editor
+  only. Rerun `gen_compile_commands.ps1` and reload; confirm a
+  `/FI...platform_fixup.h` token appears in the regenerated database for that
+  file. This is **not** a new collision, and it does not want an `#undef` in
+  `platform_fixup.h` — a green build is the evidence the header already covers
+  it. Because the collision only surfaces once a translation unit's includes
+  reach `godot_cpp/classes/object.hpp`, a stale database can go unnoticed for
+  weeks before any file happens to reach it.
 - **`Could not find a package configuration file provided by "pxr"` at
   configure** — stage 1 hasn't been run (or was moved): `find_package(pxr)`
   expects `thirdparty/usd-install/`. Run `pwsh scripts/build_usd.ps1` first.
