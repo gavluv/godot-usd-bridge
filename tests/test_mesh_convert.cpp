@@ -533,6 +533,47 @@ TEST_CASE("mesh_convert: faceVarying UV seam quads mesh converts with vertices s
 								   godot::Vector2(1, 1), godot::Vector2(.75, 1), godot::Vector2(.75, 0)});
 }
 
+TEST_CASE("mesh_convert: uniform UV quads mesh converts correctly, per-face values split vertices on the shared edge") {
+	PXR_NS::VtArray<int> face_counts{4, 4};
+	PXR_NS::VtArray<int> face_indices{0, 1, 2, 3, 3, 2, 4, 5};
+	PXR_NS::VtArray<PXR_NS::GfVec3f> points{PXR_NS::GfVec3f(-2, 0, -1), PXR_NS::GfVec3f(-2, 0, 1),
+			PXR_NS::GfVec3f(0, 0, 1), PXR_NS::GfVec3f(0, 0, -1), PXR_NS::GfVec3f(2, 0, 1), PXR_NS::GfVec3f(2, 0, -1)};
+	PXR_NS::VtArray<PXR_NS::GfVec2f> uvs_values{PXR_NS::GfVec2f(0, 1), PXR_NS::GfVec2f(1, 0)};
+	auto uvs_params = godot_usd::translate::MeshChannelParams<PXR_NS::GfVec2f>{
+			godot_usd::translate::InterpolationMode::UNIFORM, uvs_values};
+
+	auto mesh_data = godot_usd::translate::to_mesh_data(face_counts, face_indices, points, std::nullopt, uvs_params);
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == 0);
+	CHECK(mesh_data.uvs_warn_flags == 0);
+	CHECK(mesh_data.positions.size() == 8);
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3, 6, 7, 4, 6, 4, 5});
+	check_godot_v2_vectors_equal(
+			mesh_data.uvs, std::vector<godot::Vector2>{godot::Vector2(0, 0), godot::Vector2(0, 0), godot::Vector2(0, 0),
+								   godot::Vector2(0, 0), godot::Vector2(1, 1), godot::Vector2(1, 1),
+								   godot::Vector2(1, 1), godot::Vector2(1, 1)});
+}
+
+TEST_CASE("mesh_convert: constant UV quads mesh converts correctly, shared vertices not split") {
+	PXR_NS::VtArray<int> face_counts{4, 4};
+	PXR_NS::VtArray<int> face_indices{0, 1, 2, 3, 3, 2, 4, 5};
+	PXR_NS::VtArray<PXR_NS::GfVec3f> points{PXR_NS::GfVec3f(-2, 0, -1), PXR_NS::GfVec3f(-2, 0, 1),
+			PXR_NS::GfVec3f(0, 0, 1), PXR_NS::GfVec3f(0, 0, -1), PXR_NS::GfVec3f(2, 0, 1), PXR_NS::GfVec3f(2, 0, -1)};
+	PXR_NS::VtArray<PXR_NS::GfVec2f> uvs_values{PXR_NS::GfVec2f(1, 0)};
+	auto uvs_params = godot_usd::translate::MeshChannelParams<PXR_NS::GfVec2f>{
+			godot_usd::translate::InterpolationMode::CONSTANT, uvs_values};
+
+	auto mesh_data = godot_usd::translate::to_mesh_data(face_counts, face_indices, points, std::nullopt, uvs_params);
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == 0);
+	CHECK(mesh_data.uvs_warn_flags == 0);
+	CHECK(mesh_data.positions.size() == 6);
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3, 3, 2, 4, 3, 4, 5});
+	check_godot_v2_vectors_equal(
+			mesh_data.uvs, std::vector<godot::Vector2>{godot::Vector2(1, 1), godot::Vector2(1, 1), godot::Vector2(1, 1),
+								   godot::Vector2(1, 1), godot::Vector2(1, 1), godot::Vector2(1, 1)});
+}
+
 TEST_CASE("mesh_convert: quad mesh with a degenerate face converts with DEGENERATE_FACES warning and orphaned points "
 		  "compacted away") {
 	PXR_NS::VtArray<int> face_counts{4, 2};
