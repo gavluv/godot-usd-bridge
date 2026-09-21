@@ -270,6 +270,18 @@ $FixtureExpectations = [ordered]@{
 		"aabb_pos=(1.0000, 0.0000, 1.0000) aabb_size=(2.0000, 0.0000, 2.0000)",
 		"nodes: 3"
 	)
+	"indexed_primvars_quads"  = @(
+		# Indexed primvars -- the only fixture where ComputeFlattened has real
+		# expansion to do. The index array is identical to fv_uv_seam_quads',
+		# so the VERTEX COUNT is what carries this entry: st and normals each
+		# own one of the two splits, so a channel that fails to flatten is
+		# dropped and the count falls to 7, with a different idx depending on
+		# which one. Losing both gives 6. Do not "simplify" the fixture's
+		# index arrays -- overlapping splits would mask either failure at 8.
+		"mesh='IndexedPrimvarsQuads' surfaces=1 surf0[verts=8 indices=12 tris=4] idx=[0, 1, 2, 0, 2, 3, 6, 7, 4, 6, 4, 5]",
+		"aabb_pos=(-2.0000, 0.0000, -1.0000) aabb_size=(4.0000, 0.0000, 2.0000)",
+		"nodes: 3"
+	)
 }
 
 $SmokeExpectations = @(

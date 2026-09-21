@@ -757,3 +757,25 @@ TEST_CASE("mesh_convert: fv_uv_shared_quads.usda converts correctly, shared vert
 			std::vector<godot::Vector2>{godot::Vector2(0, 1), godot::Vector2(0, 0), godot::Vector2(.5, 0),
 					godot::Vector2(.5, 1), godot::Vector2(1, 0), godot::Vector2(1, 1)});
 }
+
+TEST_CASE(
+		"mesh_convert: indexed_primvars_quads.usda reads indexed primvars and converts with vertices split correctly") {
+	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("indexed_primvars_quads.usda"));
+	REQUIRE(stage != nullptr);
+	auto mesh_data =
+			godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/IndexedPrimvarsQuads")));
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == 0);
+	CHECK(mesh_data.normals_warn_flags == 0);
+	CHECK(mesh_data.uvs_warn_flags == 0);
+	CHECK(mesh_data.positions.size() == 8);
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3, 6, 7, 4, 6, 4, 5});
+	check_godot_v3_vectors_equal(
+			mesh_data.normals, std::vector<godot::Vector3>{godot::Vector3(0, 1, 0), godot::Vector3(0, 1, 0),
+									   godot::Vector3(0, 1, 0), godot::Vector3(0, 1, 0), godot::Vector3(1, 0, 0),
+									   godot::Vector3(1, 0, 0), godot::Vector3(0, 1, 0), godot::Vector3(1, 0, 0)});
+	check_godot_v2_vectors_equal(
+			mesh_data.uvs, std::vector<godot::Vector2>{godot::Vector2(0, 1), godot::Vector2(0, 0),
+								   godot::Vector2(.5, 0), godot::Vector2(.5, 1), godot::Vector2(0, 0),
+								   godot::Vector2(.5, 1), godot::Vector2(0, 1), godot::Vector2(.5, 0)});
+}
