@@ -317,8 +317,9 @@ MeshData to_mesh_data(const PXR_NS::UsdPrim &p_prim) {
 	// uvs
 	std::optional<MeshChannelParams<PXR_NS::GfVec2f>> uvs = std::nullopt;
 	uint32_t uvs_warnings = 0;
+	bool has_primary_uvs_primvar = primvars_api.HasPrimvar(PXR_NS::UsdUtilsGetPrimaryUVSetName());
 
-	if (primvars_api.HasPrimvar(PXR_NS::UsdUtilsGetPrimaryUVSetName())) {
+	if (has_primary_uvs_primvar) {
 		auto uvs_primvar = primvars_api.GetPrimvar(PXR_NS::UsdUtilsGetPrimaryUVSetName());
 		auto uvs_mode = get_interpolation_mode(uvs_primvar.GetInterpolation());
 		auto uvs_values = PXR_NS::VtArray<PXR_NS::GfVec2f>();
@@ -330,6 +331,34 @@ MeshData to_mesh_data(const PXR_NS::UsdPrim &p_prim) {
 			uvs = MeshChannelParams<PXR_NS::GfVec2f>{uvs_mode.value(), uvs_values};
 		} else {
 			uvs_warnings |= MESH_CONVERT_CHANNEL_WARN_NO_AUTHORED_VALUES;
+		}
+	}
+
+	if (!uvs.has_value()) {
+		// if there's no primvar with the primary UV set name ('st'), or primvars:st was not usable, fall back to any
+		// texCoord2f[]-typed primvar
+		for (const auto &primvar : primvars_api.GetPrimvarsWithValues()) {
+			if (primvar.GetPrimvarName() == PXR_NS::UsdUtilsGetPrimaryUVSetName()) {
+				// already checked this primvar and failed
+				continue;
+			}
+			if (primvar.GetTypeName() == PXR_NS::SdfValueTypeNames->TexCoord2fArray) {
+				auto uvs_mode = get_interpolation_mode(primvar.GetInterpolation());
+				auto uvs_values = PXR_NS::VtArray<PXR_NS::GfVec2f>();
+				if (!uvs_mode.has_value()) {
+					uvs_warnings |= MESH_CONVERT_CHANNEL_WARN_INVALID_INTERPOLATION;
+				} else if (primvar.GetElementSize() != 1) {
+					uvs_warnings |= MESH_CONVERT_CHANNEL_WARN_BAD_ELEMENT_SIZE;
+				} else if (primvar.ComputeFlattened(&uvs_values)) {
+					// we have a usable texCoord2f[] primvar to fall back to -> clear warnings from previous failures
+					// and set a unique flag if primvars:st exists but was unusable
+					uvs_warnings = has_primary_uvs_primvar ? MESH_CONVERT_CHANNEL_WARN_BAD_PRIMARY_UVS_PRIMVAR : 0;
+					uvs = MeshChannelParams<PXR_NS::GfVec2f>{uvs_mode.value(), uvs_values};
+					break;
+				} else {
+					uvs_warnings |= MESH_CONVERT_CHANNEL_WARN_NO_AUTHORED_VALUES;
+				}
+			}
 		}
 	}
 

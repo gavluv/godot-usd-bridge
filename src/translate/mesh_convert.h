@@ -25,6 +25,8 @@ enum MeshConvertWarning {
 	MESH_CONVERT_WARN_UNUSED_FACE_INDICES = 1 << 2,
 };
 
+// Channel warnings accumulate across fallback attempts, e.g., failures encountered when no usable UV primvar is found
+// among all texCoord2f[]-typed primvars
 enum MeshConvertChannelWarning {
 	MESH_CONVERT_CHANNEL_WARN_INVALID_INTERPOLATION = 1 << 0,
 	MESH_CONVERT_CHANNEL_WARN_BAD_ELEMENT_SIZE = 1 << 1,
@@ -33,6 +35,7 @@ enum MeshConvertChannelWarning {
 	MESH_CONVERT_CHANNEL_WARN_TRUNCATED_VALUES = 1 << 4,
 	MESH_CONVERT_CHANNEL_WARN_BAD_NORMALS_PRIMVAR = 1 << 5,
 	MESH_CONVERT_CHANNEL_WARN_ZERO_LENGTH_NORMAL = 1 << 6,
+	MESH_CONVERT_CHANNEL_WARN_BAD_PRIMARY_UVS_PRIMVAR = 1 << 7,
 };
 
 // An error is terminal and singular, so it's a scoped discriminant. MeshData.error_reason defaults to UNSET for

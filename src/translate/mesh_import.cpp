@@ -59,6 +59,9 @@ static godot::String get_channel_warn_flags_string(const uint32_t p_warn_flags) 
 	if (p_warn_flags & MESH_CONVERT_CHANNEL_WARN_ZERO_LENGTH_NORMAL) {
 		warn_parts.append("contains zero-length normal value");
 	}
+	if (p_warn_flags & MESH_CONVERT_CHANNEL_WARN_BAD_PRIMARY_UVS_PRIMVAR) {
+		warn_parts.append("malformed primary UV set primvar");
+	}
 
 	return godot::String("; ").join(warn_parts);
 }
