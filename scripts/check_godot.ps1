@@ -309,18 +309,33 @@ function Find-Godot {
 	throw "Godot not found. Set `$env:GODOT, put godot on PATH, or pass -Godot."
 }
 
-# Runs Godot, tees combined output to $LogPath, returns the exit code.
-# $ErrorActionPreference is relaxed around the call: Godot writes its banner and
-# errors to stderr, which would otherwise become a terminating NativeCommandError.
+# Runs Godot, writes its combined output to $LogPath, returns the exit code.
+#
+# Redirection happens at the PROCESS level, not through the PowerShell pipeline.
+# `& $exe @args 2>&1` wraps every stderr line in a NativeCommandError record, and
+# rendering that record hard-wraps at the host's console width -- so a WARNING
+# longer than ~120 columns lands in the log split across two lines and no
+# per-line substring match can ever find it. The width is the HOST's, so the same
+# needle can pass locally and fail in CI. Start-Process hands the streams
+# straight to files and none of that applies; it also keeps the "At <script>:N
+# char:M" and "+ CategoryInfo" decoration out of the logs.
+#
+# Cost: stdout and stderr are concatenated rather than interleaved. Nothing here
+# depends on their relative order -- Get-MissingExpectations matches per line.
 function Invoke-Godot {
 	param([string[]]$GodotArgs, [string]$LogPath)
 
-	$previous = $ErrorActionPreference
-	$ErrorActionPreference = "Continue"
-	& $script:GodotExe @GodotArgs 2>&1 | Tee-Object -FilePath $LogPath | Out-Null
-	$code = $LASTEXITCODE
-	$ErrorActionPreference = $previous
-	return $code
+	# Start-Process joins ArgumentList with spaces and quotes nothing, so any
+	# argument containing a space has to arrive pre-quoted.
+	$quoted = @($GodotArgs | ForEach-Object { if ($_ -match '\s') { '"' + $_ + '"' } else { $_ } })
+
+	$outFile = "$LogPath.out"
+	$errFile = "$LogPath.err"
+	$proc = Start-Process -FilePath $script:GodotExe -ArgumentList $quoted -RedirectStandardOutput $outFile `
+		-RedirectStandardError $errFile -Wait -PassThru -NoNewWindow
+	Get-Content $outFile, $errFile -ErrorAction SilentlyContinue | Set-Content $LogPath -Encoding utf8
+	Remove-Item $outFile, $errFile -ErrorAction SilentlyContinue
+	return $proc.ExitCode
 }
 
 # Returns the expectations that are missing from $LogPath. Call sites wrap this
