@@ -779,3 +779,73 @@ TEST_CASE(
 								   godot::Vector2(.5, 0), godot::Vector2(.5, 1), godot::Vector2(0, 0),
 								   godot::Vector2(.5, 1), godot::Vector2(0, 1), godot::Vector2(.5, 0)});
 }
+
+TEST_CASE("mesh_convert: float2_st_quad.usda converts correctly using float2[]-typed UV primvar") {
+	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("float2_st_quad.usda"));
+	REQUIRE(stage != nullptr);
+	auto mesh_data = godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/Float2StQuad")));
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == 0);
+	CHECK(mesh_data.normals_warn_flags == 0);
+	CHECK(mesh_data.uvs_warn_flags == 0);
+	CHECK(mesh_data.positions.size() == 4);
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3});
+	check_godot_v2_vectors_equal(mesh_data.uvs, std::vector<godot::Vector2>{godot::Vector2(0, 1), godot::Vector2(0, 0),
+														godot::Vector2(1, 0), godot::Vector2(1, 1)});
+}
+
+TEST_CASE("mesh_convert: uv_set_by_type_quads.usda converts correctly using UV primvar not named 'st'") {
+	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("uv_set_by_type_quads.usda"));
+	REQUIRE(stage != nullptr);
+	auto mesh_data =
+			godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/UvSetByTypeQuads")));
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == 0);
+	CHECK(mesh_data.normals_warn_flags == 0);
+	CHECK(mesh_data.uvs_warn_flags == 0);
+	CHECK(mesh_data.positions.size() == 8);
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3, 6, 7, 4, 6, 4, 5});
+	check_godot_v2_vectors_equal(
+			mesh_data.uvs, std::vector<godot::Vector2>{godot::Vector2(0, 1), godot::Vector2(0, 0),
+								   godot::Vector2(.5, 0), godot::Vector2(.5, 1), godot::Vector2(1, 0),
+								   godot::Vector2(1, 1), godot::Vector2(.75, 1), godot::Vector2(.75, 0)});
+}
+
+TEST_CASE("mesh_convert: malformed_st_fallback_quad.usda converts with BAD_PRIMARY_UVS_PRIMVAR warning and UVs taken "
+		  "from the fallback primvar") {
+	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("malformed_st_fallback_quad.usda"));
+	REQUIRE(stage != nullptr);
+	auto mesh_data =
+			godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/MalformedStFallbackQuad")));
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == 0);
+	CHECK(mesh_data.normals_warn_flags == 0);
+	CHECK(mesh_data.uvs_warn_flags == godot_usd::translate::MESH_CONVERT_CHANNEL_WARN_BAD_PRIMARY_UVS_PRIMVAR);
+	CHECK(mesh_data.positions.size() == 4);
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3});
+	check_godot_v2_vectors_equal(
+			mesh_data.uvs, std::vector<godot::Vector2>{godot::Vector2(.25, .75), godot::Vector2(.25, .25),
+								   godot::Vector2(.75, .25), godot::Vector2(.75, .75)});
+}
+
+TEST_CASE("mesh_convert: uv_fallback_after_bad_candidate_quad.usda converts correctly, warnings from the bad candidate "
+		  "are cleared") {
+	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("uv_fallback_after_bad_candidate_quad.usda"));
+	REQUIRE(stage != nullptr);
+	PXR_NS::UsdPrim prim = stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/UvFallbackAfterBadCandidateQuad"));
+	auto primvars = PXR_NS::UsdGeomPrimvarsAPI(prim).GetPrimvarsWithValues();
+	// The scan depends on BadUV being enumerated before GoodUV, an ordering USD does not document.
+	// If this fails the ordering changed, and the assertions below no longer exercise the clear.
+	REQUIRE(primvars.size() == 2);
+	REQUIRE(primvars[0].GetPrimvarName() == PXR_NS::TfToken("BadUV"));
+	REQUIRE(primvars[1].GetPrimvarName() == PXR_NS::TfToken("GoodUV"));
+	auto mesh_data = godot_usd::translate::to_mesh_data(prim);
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == 0);
+	CHECK(mesh_data.normals_warn_flags == 0);
+	CHECK(mesh_data.uvs_warn_flags == 0);
+	CHECK(mesh_data.positions.size() == 4);
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3});
+	check_godot_v2_vectors_equal(mesh_data.uvs, std::vector<godot::Vector2>{godot::Vector2(0, 1), godot::Vector2(0, 0),
+														godot::Vector2(1, 0), godot::Vector2(1, 1)});
+}

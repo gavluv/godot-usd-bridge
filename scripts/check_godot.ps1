@@ -65,7 +65,7 @@ $LogDir = Join-Path $RepoRoot "build/check-logs"
 # to describe current behaviour.
 # ---------------------------------------------------------------------------
 $FixtureExpectations = [ordered]@{
-	"nested_xforms"           = @(
+	"nested_xforms"              = @(
 		# Synthetic stage-root node above the prim nodes.
 		"- nested_xforms_usda  path=/ type=",
 		# LOCAL transforms, not world: world space would put Child at (10, 5, 0).
@@ -74,7 +74,7 @@ $FixtureExpectations = [ordered]@{
 		"euler_deg=(-0.0000, 90.0000, 0.0000)",
 		"nodes: 4"
 	)
-	"reset_xform_stack"       = @(
+	"reset_xform_stack"          = @(
 		# The root correction lives on the synthetic root, so prim nodes keep
 		# their USD-authored local transforms unmodified.
 		"- reset_xform_stack_usda  path=/ type= origin=(0.0000, 0.0000, 0.0000) scale=(0.0100, 0.0100, 0.0100)",
@@ -84,7 +84,7 @@ $FixtureExpectations = [ordered]@{
 		"- Detached  path=/Root/Detached type=Xform origin=(0.0000, 0.0000, 0.0500) scale=(0.0100, 0.0100, 0.0100) euler_deg=(-0.0000, 0.0000, 0.0000) top_level=true",
 		"nodes: 4"
 	)
-	"no_default_prim"         = @(
+	"no_default_prim"            = @(
 		# No defaultPrim to fall back from, and multiple top-level prims: all of
 		# them must survive the import.
 		"- no_default_prim_usda  path=/ type=",
@@ -92,19 +92,19 @@ $FixtureExpectations = [ordered]@{
 		"- SecondChild  path=/Second/SecondChild",
 		"nodes: 4"
 	)
-	"inactive_prims"          = @(
+	"inactive_prims"             = @(
 		# Default predicate filtering: inactive / abstract / undefined prims are
 		# excluded. Unfiltered traversal would give 6 nodes.
 		"- Visible  path=/Root/Visible",
 		"nodes: 3"
 	)
-	"quad_mesh"               = @(
+	"quad_mesh"                  = @(
 		# Fan triangulation of a single quad: 4 corners -> 2 triangles.
 		"mesh='Quad' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
 		"aabb_pos=(-1.0000, 0.0000, -1.0000) aabb_size=(2.0000, 0.0000, 2.0000)",
 		"nodes: 3"
 	)
-	"shared_edge_quads"       = @(
+	"shared_edge_quads"          = @(
 		# Non-identity faceVertexIndices: corner offsets and point indices
 		# diverge from entry 6 on, so this catches conflating the two. Corner
 		# offsets would be [.. 4,5,6, 4,6,7]; point indices differ.
@@ -112,7 +112,7 @@ $FixtureExpectations = [ordered]@{
 		"aabb_pos=(-2.0000, 0.0000, -1.0000) aabb_size=(4.0000, 0.0000, 2.0000)",
 		"nodes: 3"
 	)
-	"degenerate_mesh"         = @(
+	"degenerate_mesh"            = @(
 		# Valid but triangle-less: no surface is added, and it is a WARNING
 		# (legal USD) rather than an error. Keep the WARNING: prefix in the
 		# needle -- log level is the only thing separating this fixture from
@@ -122,7 +122,7 @@ $FixtureExpectations = [ordered]@{
 		"mesh=<none>",
 		"nodes: 3"
 	)
-	"malformed_mesh"          = @(
+	"malformed_mesh"             = @(
 		# Out-of-range point index: conversion fails loudly, but the node is
 		# still created so the prim keeps its place in the hierarchy. The
 		# parenthesised reason pins WHICH check rejected it -- without it this
@@ -132,7 +132,7 @@ $FixtureExpectations = [ordered]@{
 		"mesh=<none>",
 		"nodes: 3"
 	)
-	"truncated_face_indices"  = @(
+	"truncated_face_indices"     = @(
 		# faceVertexCounts declares 5 corners against 4 authored indices. The
 		# degenerate second face means triangulation never emits an offset past
 		# the end, so the per-corner bound in map_corners_to_points stays quiet
@@ -152,7 +152,7 @@ $FixtureExpectations = [ordered]@{
 	# Warning segments can only appear INSIDE those parens, so the closing
 	# one is what makes each of these detect an EXTRA warning as well as a
 	# missing one. Do not trim them to the message text alone.
-	"bogus_interp"            = @(
+	"bogus_interp"               = @(
 		# An interpolation token USD does not define. There is no safe default
 		# to fall back on -- the token decides both how many values to expect
 		# and which one each corner gets -- so the channel is dropped.
@@ -160,7 +160,7 @@ $FixtureExpectations = [ordered]@{
 		"mesh='BogusInterp' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
 		"nodes: 3"
 	)
-	"oversized_primvar"       = @(
+	"oversized_primvar"          = @(
 		# More values than the interpolation calls for is USABLE: every corner
 		# still resolves and the surplus is ignored. Must say 'unused', not
 		# 'truncated', and must NOT drop the channel.
@@ -168,7 +168,7 @@ $FixtureExpectations = [ordered]@{
 		"mesh='OversizedPrimvar' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
 		"nodes: 3"
 	)
-	"elementsize_primvar"     = @(
+	"elementsize_primvar"        = @(
 		# elementSize is a stride, so 8 values over 4 points is well formed USD
 		# rather than a surplus. Ignoring elementSize lands this in the 'unused
 		# values' branch instead and assigns stride garbage to half the mesh.
@@ -176,7 +176,7 @@ $FixtureExpectations = [ordered]@{
 		"mesh='ElementSizePrimvar' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
 		"nodes: 3"
 	)
-	"no_normals_mesh"         = @(
+	"no_normals_mesh"            = @(
 		# Authors no normals, which is ordinary USD. The mesh-level warning
 		# exists only to give the needle a parenthesised list to pin: a
 		# [NORMALS] or [UVS] segment can only appear inside it. This is the
@@ -186,7 +186,7 @@ $FixtureExpectations = [ordered]@{
 		"mesh='NoNormals' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
 		"nodes: 3"
 	)
-	"zero_normal_mesh"        = @(
+	"zero_normal_mesh"           = @(
 		# Structurally perfect channel with one unusable VALUE. Warns and is
 		# KEPT, with (0, 1, 0) substituted -- the opposite disposition from the
 		# count-mismatch fixtures, which warn and drop.
@@ -194,7 +194,7 @@ $FixtureExpectations = [ordered]@{
 		"mesh='ZeroNormal' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
 		"nodes: 3"
 	)
-	"normals_precedence"      = @(
+	"normals_precedence"         = @(
 		# Malformed primvars:normals with a usable `normals` attribute behind
 		# it. Once the fallback succeeds the specific primvar warning is
 		# REPLACED, so 'invalid interpolation mode' appearing here is a failure
@@ -203,7 +203,7 @@ $FixtureExpectations = [ordered]@{
 		"mesh='NormalsPrecedence' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
 		"nodes: 3"
 	)
-	"blocked_normals"         = @(
+	"blocked_normals"            = @(
 		# `= None` is an authored opinion, so unlike no_normals_mesh it must
 		# warn. Get() fails on a block, so no channel is built and the count
 		# check is never reached: 'no authored values', never 'truncated'.
@@ -211,7 +211,7 @@ $FixtureExpectations = [ordered]@{
 		"mesh='BlockedNormals' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
 		"nodes: 3"
 	)
-	"empty_normals_array"     = @(
+	"empty_normals_array"        = @(
 		# `= []` is a real value that Get() SUCCEEDS on, so a channel is built
 		# and then judged short against P=4. The only fixture reaching
 		# validate_channel through normals rather than a primvar, and the only
@@ -226,7 +226,7 @@ $FixtureExpectations = [ordered]@{
 	# it over the whole ARRAY_VERTEX rather than the vertices the index array
 	# reaches, so it is unreachable from MeshData and this is its only
 	# coverage.
-	"fv_uv_seam_quads"        = @(
+	"fv_uv_seam_quads"           = @(
 		# A faceVarying UV seam: corners 3/4 and 2/5 disagree, so points 3 and
 		# 2 each split, appending vertices 6 and 7. Those appended vertices
 		# duplicate existing positions, so the AABB must NOT move -- a splitter
@@ -236,7 +236,7 @@ $FixtureExpectations = [ordered]@{
 		"aabb_pos=(-2.0000, 0.0000, -1.0000) aabb_size=(4.0000, 0.0000, 2.0000)",
 		"nodes: 3"
 	)
-	"fv_uv_seam_orphan_quads" = @(
+	"fv_uv_seam_orphan_quads"    = @(
 		# The seam fixture plus two unreferenced points: splitting appends past
 		# point_count while compaction removes slots inside it, the only
 		# fixture that does both. Needles are identical to fv_uv_seam_quads'
@@ -247,7 +247,7 @@ $FixtureExpectations = [ordered]@{
 		"aabb_pos=(-2.0000, 0.0000, -1.0000) aabb_size=(4.0000, 0.0000, 2.0000)",
 		"nodes: 3"
 	)
-	"fv_uv_shared_quads"      = @(
+	"fv_uv_shared_quads"         = @(
 		# The same topology and interpolation as fv_uv_seam_quads with UVs that
 		# AGREE across the shared edge, so nothing may split. 6 verts rather
 		# than 8 is the whole assertion; the AABB matches its seam twin and
@@ -258,7 +258,7 @@ $FixtureExpectations = [ordered]@{
 		"aabb_pos=(-2.0000, 0.0000, -1.0000) aabb_size=(4.0000, 0.0000, 2.0000)",
 		"nodes: 3"
 	)
-	"partial_orphan_mesh"     = @(
+	"partial_orphan_mesh"        = @(
 		# One real face and one degenerate one, so the mesh converts while
 		# still carrying orphan points. The AABB is the detector: unclaimed
 		# slots are zero-initialised and the quad sits at x,z in [1, 3], so an
@@ -270,7 +270,7 @@ $FixtureExpectations = [ordered]@{
 		"aabb_pos=(1.0000, 0.0000, 1.0000) aabb_size=(2.0000, 0.0000, 2.0000)",
 		"nodes: 3"
 	)
-	"indexed_primvars_quads"  = @(
+	"indexed_primvars_quads"     = @(
 		# Indexed primvars -- the only fixture where ComputeFlattened has real
 		# expansion to do. The index array is identical to fv_uv_seam_quads',
 		# so the VERTEX COUNT is what carries this entry: st and normals each
@@ -280,6 +280,42 @@ $FixtureExpectations = [ordered]@{
 		# index arrays -- overlapping splits would mask either failure at 8.
 		"mesh='IndexedPrimvarsQuads' surfaces=1 surf0[verts=8 indices=12 tris=4] idx=[0, 1, 2, 0, 2, 3, 6, 7, 4, 6, 4, 5]",
 		"aabb_pos=(-2.0000, 0.0000, -1.0000) aabb_size=(4.0000, 0.0000, 2.0000)",
+		"nodes: 3"
+	)
+	# ---- UV set resolution (task 1.4) -----------------------------------
+	# Two of the four UV-resolution fixtures have no entry here, deliberately.
+	# float2_st_quad and uv_fallback_after_bad_candidate_quad both assert the
+	# ABSENCE of a warning on a successful import, and neither failure mode
+	# moves any geometry -- so every needle they could carry would still match
+	# while the bug was present. Both are doctest-only; their docs say why.
+	"uv_set_by_type_quads"       = @(
+		# A texCoord2f[] UV set named 'UVMap' rather than 'st', so the type
+		# scan is the only thing that can reach it. Needles are identical to
+		# fv_uv_seam_quads' apart from the mesh name: a set found by TYPE has
+		# to be processed exactly like one found by NAME -- flattened, sampled
+		# per corner, V-flipped, and allowed to split.
+		#
+		# Without the scan this mesh imports with no UVs AND no warning, since
+		# HasPrimvar('st') is false and the channel is never built. The vertex
+		# count is what surfaces it: 6 rather than 8, because with no UV
+		# channel in the key the seam stops splitting.
+		"mesh='UvSetByTypeQuads' surfaces=1 surf0[verts=8 indices=12 tris=4] idx=[0, 1, 2, 0, 2, 3, 6, 7, 4, 6, 4, 5]",
+		"aabb_pos=(-2.0000, 0.0000, -1.0000) aabb_size=(4.0000, 0.0000, 2.0000)",
+		"nodes: 3"
+	)
+	"malformed_st_fallback_quad" = @(
+		# A primary UV set rejected on elementSize with a usable 'UVMap' behind
+		# it -- the only producer of BAD_PRIMARY_UVS_PRIMVAR anywhere in the
+		# corpus, so without this entry that enumerator has no test.
+		#
+		# The warning is REPLACED, not accumulated. 'unexpected element size'
+		# is raised against st first, then cleared once the fallback succeeds,
+		# because by then it describes a source the importer did not use. An
+		# implementation that ORs instead reports both, and the closing ')'
+		# is what catches it.
+		"WARNING: USD mesh conversion warnings: /Root/MalformedStFallbackQuad ([UVS] malformed primary UV set primvar)",
+		"mesh='MalformedStFallbackQuad' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
+		"aabb_pos=(-1.0000, 0.0000, -1.0000) aabb_size=(2.0000, 0.0000, 2.0000)",
 		"nodes: 3"
 	)
 }
