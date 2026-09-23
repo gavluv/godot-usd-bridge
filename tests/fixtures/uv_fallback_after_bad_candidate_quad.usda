@@ -1,0 +1,72 @@
+#usda 1.0
+(
+    doc = """Mesh-import fixture (task 1.4): two texCoord2f[] primvars and no
+    'st', the first unusable and the second fine, so the scan has to discard
+    what it learned from a candidate it ended up not using.
+
+    DOCTEST ONLY -- deliberately has no check_godot.ps1 entry. What this file
+    asserts is the ABSENCE of a warning on a successful import, and the golden
+    checker only matches lines that must be PRESENT. A regression here adds a
+    warning line and changes no geometry, so every needle it could carry would
+    still match. Only CHECK(uvs_warn_flags == 0) catches it.
+
+    TOPOLOGY -- the quad_mesh.usda quad
+      points            4 entries
+      faceVertexCounts  [4]
+      faceVertexIndices [0, 1, 2, 3]
+
+    THE TWO CANDIDATES
+      primvars:BadUV   interpolation = "perCorner", which is not a USD
+                       interpolation, so it resolves to no mode and fails.
+      primvars:GoodUV  vertex, 4 values, perfectly usable.
+
+      Neither is named 'st', so the named path never runs and the scan is the
+      only way either is reached. BadUV's values are nothing like GoodUV's, so
+      picking the wrong one is obvious in the UV assertion.
+
+    EXPECTED
+      - 4 vertices, 6 indices, [0, 1, 2, 0, 2, 3]
+      - UVs after the V-flip, from GoodUV: (0,1) (0,0) (1,0) (1,1)
+      - AABB spans (-1, 0, -1) to (1, 0, 1)
+      - uvs_warn_flags == 0. BadUV's 'invalid interpolation mode' is raised
+        while scanning and then cleared, because by the time GoodUV succeeds
+        it describes a source the importer did not use.
+
+    DETECTOR: this is the only test of the branch that clears accumulated
+    scan warnings on success when no primary UV set exists. An implementation
+    that clears only when 'st' was present -- which is what the first draft of
+    the scan did -- imports these UVs correctly and still reports '[UVS]
+    invalid interpolation mode', blaming a primvar it discarded.
+
+    DEPENDS ON ENUMERATION ORDER, which USD does not document.
+    UsdGeomPrimvarsAPI::GetPrimvarsWithValues() -- the list the scan walks --
+    was observed to return primvars ordered by name on OpenUSD v26.05, which
+    is why BadUV must sort before GoodUV. If GoodUV were reached first the
+    scan would succeed immediately, no warning would ever be raised, and this
+    file would pass while testing nothing.
+
+    That failure is silent, so the doctest REQUIREs the order before asserting
+    anything else. A pin bump that changes it fails there, loudly, rather than
+    quietly hollowing this fixture out. Renaming either primvar carries the
+    same hazard: the names are chosen to sort, not to describe."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Mesh "UvFallbackAfterBadCandidateQuad"
+    {
+        float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+        texCoord2f[] primvars:BadUV = [(0.1, 0.1), (0.1, 0.9), (0.9, 0.9), (0.9, 0.1)] (
+            interpolation = "perCorner"
+        )
+        texCoord2f[] primvars:GoodUV = [(0, 0), (0, 1), (1, 1), (1, 0)] (
+            interpolation = "vertex"
+        )
+    }
+}

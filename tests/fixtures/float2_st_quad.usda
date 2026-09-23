@@ -1,0 +1,55 @@
+#usda 1.0
+(
+    doc = """Mesh-import fixture (task 1.4): the primary UV set declared as
+    float2[] rather than texCoord2f[], which decision 6b says to accept.
+
+    USD has two value types that carry a pair of floats. texCoord2f[] is
+    float2[] plus a "TextureCoordinate" role -- the role is metadata about
+    intent, not a different layout, and both resolve to VtArray<GfVec2f> in
+    the C++ type system. Exporters differ on which they write.
+
+    TOPOLOGY -- the quad_mesh.usda quad
+      points            4 entries
+      faceVertexCounts  [4]
+      faceVertexIndices [0, 1, 2, 3]
+
+      st is vertex-interpolated with 4 values, one per point. Nothing here
+      tests splitting; the seam fixtures cover that. What this file tests is
+      that the channel is READ at all.
+
+    EXPECTED
+      - 4 vertices, 6 indices, [0, 1, 2, 0, 2, 3]
+      - UVs after the V-flip: (0,1) (0,0) (1,0) (1,1)
+      - AABB spans (-1, 0, -1) to (1, 0, 1)
+      - no warning line
+
+    DETECTOR: the named path currently does no type checking at all -- it
+    takes whatever primvar carries the primary UV set name and hands it to
+    ComputeFlattened, which is happy with either type. So this file passes
+    by construction rather than by design, and it exists to keep it that
+    way: a type check added to the named path (restricting it to
+    TexCoord2fArray, say, to match the SCAN path) would drop these UVs
+    silently, since a name that is present but unusable produces no
+    warning of its own.
+
+    NOT COVERED HERE: float2[] under a name other than 'st'. Decision 6b
+    scans for texCoord2f[] only, on the grounds that float2[] is too generic
+    to identify a UV set by type, so such a primvar is correctly ignored."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Mesh "Float2StQuad"
+    {
+        float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+        float2[] primvars:st = [(0, 0), (0, 1), (1, 1), (1, 0)] (
+            interpolation = "vertex"
+        )
+    }
+}

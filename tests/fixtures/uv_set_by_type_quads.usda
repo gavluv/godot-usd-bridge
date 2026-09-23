@@ -1,0 +1,65 @@
+#usda 1.0
+(
+    doc = """Mesh-import fixture (task 1.4): a texCoord2f[] UV set under a name
+    that is NOT the primary one, so it can only be found by scanning types.
+
+    Decision 6 resolves UVs by the primary name first
+    (UsdUtilsGetPrimaryUVSetName(), 'st'), then by scanning for a
+    texCoord2f[]-typed primvar. Every other fixture in the corpus authors
+    'st', so the named path is all any of them exercise. This one authors
+    'primvars:UVMap' -- a name DCCs commonly give their first UV layer --
+    and reaches the channel only through the type scan.
+
+    This is the half of that fallback where 'st' is ABSENT.
+    malformed_st_fallback_quad.usda covers the other half, where 'st' is
+    present but unusable and the scan has to supersede it.
+
+    TOPOLOGY AND VALUES -- identical to fv_uv_seam_quads.usda
+      points            6 entries
+      faceVertexCounts  [4, 4]
+      faceVertexIndices [0, 1, 2, 3,  3, 2, 4, 5]
+
+      The primvar is faceVarying with the same seam: corners 3 and 4 are
+      both point 3 with different UVs, likewise corners 2 and 5 for point 2.
+      Only the NAME differs from fv_uv_seam_quads.usda.
+
+    EXPECTED -- identical to fv_uv_seam_quads.usda
+      - 8 vertices, 12 indices, [0, 1, 2,  0, 2, 3,  6, 7, 4,  6, 4, 5]
+      - the same UVs after the V-flip:
+          (0,1) (0,0) (.5,0) (.5,1) (1,0) (1,1) (.75,1) (.75,0)
+      - AABB spans (-2, 0, -1) to (2, 0, 1)
+      - no warning line
+
+      That the two files agree exactly IS the assertion: a UV set found by
+      type must be processed identically to one found by name -- flattened,
+      sampled per corner, V-flipped, and allowed to split vertices.
+
+    DETECTOR: without the type scan this mesh imports with NO UVs AND NO
+    WARNING. HasPrimvar('st') is false, so the channel is never built and
+    nothing is flagged -- the user simply gets an untextured mesh. The
+    vertex count is what surfaces it: 6 rather than 8, because with no UV
+    channel the dedup key reduces to the point index and the seam vanishes.
+
+    Carrying a real seam rather than flat UVs is deliberate. A scan that
+    found the primvar but mishandled it -- wrong interpolation, unflattened
+    values, missing V-flip -- would still give 6 or a wrong UV array, so the
+    fixture tests that the scanned channel is fully processed, not merely
+    located."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Mesh "UvSetByTypeQuads"
+    {
+        float3[] extent = [(-2, 0, -1), (2, 0, 1)]
+        int[] faceVertexCounts = [4, 4]
+        int[] faceVertexIndices = [0, 1, 2, 3, 3, 2, 4, 5]
+        point3f[] points = [(-2, 0, -1), (-2, 0, 1), (0, 0, 1), (0, 0, -1), (2, 0, 1), (2, 0, -1)]
+        texCoord2f[] primvars:UVMap = [(0, 0), (0, 1), (0.5, 1), (0.5, 0), (0.75, 0), (0.75, 1), (1, 1), (1, 0)] (
+            interpolation = "faceVarying"
+        )
+    }
+}

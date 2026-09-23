@@ -1,0 +1,68 @@
+#usda 1.0
+(
+    doc = """Mesh-import fixture (task 1.4): an unusable primary UV set with a
+    usable texCoord2f[] primvar behind it, so the scan has something to fall
+    back TO.
+
+    The only fixture that produces MESH_CONVERT_CHANNEL_WARN_BAD_PRIMARY_UVS_PRIMVAR.
+    Without it that enumerator has no producer in any test.
+
+    TOPOLOGY -- the quad_mesh.usda quad
+      points            4 entries
+      faceVertexCounts  [4]
+      faceVertexIndices [0, 1, 2, 3]
+
+    THE DEFECT AND THE FALLBACK
+      primvars:st declares elementSize = 2, which is well-formed USD (8
+      values over 4 points, stride 2) but not something an ArrayMesh UV
+      channel can carry -- see elementsize_primvar.usda, which is this same
+      defect with nothing to fall back to.
+
+      primvars:UVMap is texCoord2f[], vertex-interpolated, 4 values, and
+      perfectly usable. Its values are deliberately nothing like st's: all
+      quarter/three-quarter coordinates, so a mesh that somehow used st
+      anyway is obvious in the UV assertion rather than subtly off.
+
+    EXPECTED
+      - 4 vertices, 6 indices, [0, 1, 2, 0, 2, 3]
+      - UVs after the V-flip, from UVMap:
+          (0.25, 0.75) (0.25, 0.25) (0.75, 0.25) (0.75, 0.75)
+      - AABB spans (-1, 0, -1) to (1, 0, 1)
+      - warns exactly '[UVS] malformed primary UV set primvar'
+
+    DETECTOR: the warning is REPLACED, not accumulated. The named path flags
+    st with 'unexpected element size' first; once the scan finds a usable
+    primvar that flag describes a source the importer did not use, so it is
+    cleared and the single fallback flag set in its place. An implementation
+    that ORs instead reports '[UVS] unexpected element size; malformed
+    primary UV set primvar', which the golden's closing ')' catches.
+
+    CONTRAST with normals_precedence.usda, which is the same shape one
+    channel over: a malformed primvar, a usable second source, and a flag
+    naming the situation rather than the original defect.
+
+    Enumeration order does not matter here. st is resolved on the named path
+    and skipped by the scan, so it cannot race the fallback regardless of
+    what order GetPrimvars() returns."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Mesh "MalformedStFallbackQuad"
+    {
+        float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+        texCoord2f[] primvars:UVMap = [(0.25, 0.25), (0.25, 0.75), (0.75, 0.75), (0.75, 0.25)] (
+            interpolation = "vertex"
+        )
+        texCoord2f[] primvars:st = [(0, 0), (0.1, 0.1), (0, 1), (0.1, 0.9), (1, 1), (0.9, 0.9), (1, 0), (0.9, 0.1)] (
+            elementSize = 2
+            interpolation = "vertex"
+        )
+    }
+}
