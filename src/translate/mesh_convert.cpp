@@ -62,6 +62,20 @@ MeshConvertError map_corners_to_points(
 	return MeshConvertError::NONE;
 }
 
+void flip_triangles_winding(std::vector<int32_t> &r_tri_indices) {
+	// Mutates r_tri_indices in-place; swaps each triangle's slots 1 and 2 to flip the winding order.
+	// We swap 1 and 2 instead of 0 and 2 because the former keeps the fan's anchor corner in slot 0 and matches
+	// how Godot's glTF importer flips winding (see _parse_meshes in godot/modules/gltf/gltf_document.cpp).
+
+	if (r_tri_indices.size() < 3) {
+		return;
+	}
+
+	for (size_t i = 0; i < r_tri_indices.size() - 2; i += 3) {
+		std::swap(r_tri_indices[i + 1], r_tri_indices[i + 2]);
+	}
+}
+
 static void lazy_build_corner_to_face(InterpolationMode p_check_mode, const PXR_NS::VtArray<int> &p_face_vertex_counts,
 		std::optional<std::vector<int32_t>> *r_corner_to_face) {
 	if (!r_corner_to_face->has_value() && p_check_mode == InterpolationMode::UNIFORM) {

@@ -87,6 +87,8 @@ template <typename T> struct MeshChannelParams {
 MeshConvertError map_corners_to_points(
 		std::vector<int32_t> &r_tri_indices, const PXR_NS::VtArray<int> &p_face_vertex_indices, size_t p_point_count);
 
+void flip_triangles_winding(std::vector<int32_t> &r_tri_indices);
+
 MeshData to_mesh_data(const PXR_NS::VtArray<int> &p_face_vertex_counts,
 		const PXR_NS::VtArray<int> &p_face_vertex_indices, const PXR_NS::VtArray<PXR_NS::GfVec3f> &p_points,
 		const std::optional<MeshChannelParams<PXR_NS::GfVec3f>> &p_normals,

@@ -849,3 +849,34 @@ TEST_CASE("mesh_convert: uv_fallback_after_bad_candidate_quad.usda converts corr
 	check_godot_v2_vectors_equal(mesh_data.uvs, std::vector<godot::Vector2>{godot::Vector2(0, 1), godot::Vector2(0, 0),
 														godot::Vector2(1, 0), godot::Vector2(1, 1)});
 }
+
+TEST_CASE("mesh_convert: flip_triangles_winding swaps each triangle's 1/2 indices") {
+	auto tris = std::vector<int32_t>{3, 4, 5, 0, 1, 2};
+	godot_usd::translate::flip_triangles_winding(tris);
+	check_int32_vectors_equal(tris, std::vector<int32_t>{3, 5, 4, 0, 2, 1});
+}
+
+TEST_CASE("mesh_convert: flip_triangles_winding on an empty array does nothing") {
+	auto tris = std::vector<int32_t>();
+	godot_usd::translate::flip_triangles_winding(tris);
+	CHECK(tris.size() == 0);
+}
+
+TEST_CASE("mesh_convert: flip_triangles_winding on a 1-length array does nothing") {
+	auto tris = std::vector<int32_t>{6};
+	godot_usd::translate::flip_triangles_winding(tris);
+	check_int32_vectors_equal(tris, std::vector<int32_t>{6});
+}
+
+TEST_CASE("mesh_convert: flip_triangles_winding ignores trailing indices when input size is not a multiple of 3") {
+	auto tris = std::vector<int32_t>{3, 4, 5, 0, 1};
+	godot_usd::translate::flip_triangles_winding(tris);
+	check_int32_vectors_equal(tris, std::vector<int32_t>{3, 5, 4, 0, 1});
+}
+
+TEST_CASE("mesh_convert: flip_triangles_winding flipping twice restores the input") {
+	auto tris = std::vector<int32_t>{3, 4, 5, 0, 1, 2};
+	godot_usd::translate::flip_triangles_winding(tris);
+	godot_usd::translate::flip_triangles_winding(tris);
+	check_int32_vectors_equal(tris, std::vector<int32_t>{3, 4, 5, 0, 1, 2});
+}
