@@ -38,9 +38,14 @@
 
     EXPECTED -- Godot arrays
       ARRAY_VERTEX : 6 entries
-      ARRAY_INDEX  : 12 entries, [0,1,2, 0,2,3, 3,2,4, 3,4,5]
+      ARRAY_INDEX  : 12 entries, [0,2,1, 0,3,2, 3,4,2, 3,5,4]
       one surface, PRIMITIVE_TRIANGLES
       AABB spans (-2, 0, -1) to (2, 0, 1)
+
+      ARRAY_INDEX is the mapped array above with each triangle's second and
+      third entries swapped (task 1.5), for Godot's clockwise front faces. A
+      converter that emits corner offsets instead shows [0,2,1, 0,3,2, 4,6,5,
+      4,7,6] here.
 
     DETECTOR: this file catches two bug classes quad_mesh.usda cannot --
       1. conflating corner offsets with point indices (identical under an
@@ -50,8 +55,8 @@
          6 points. A loop bounded by faceVertexIndices leaves the last 4
          entries unmapped; one bounded by points leaves the last 6.
 
-    NOT EXPECTED YET: winding is not flipped (task 1.5) and there are no
-    normals (task 1.4). Verify structurally, not by eye."""
+    NOT EXPECTED YET: there are no normals (task 1.4). Verify structurally, not
+    by eye."""
     defaultPrim = "Root"
     metersPerUnit = 1
     upAxis = "Y"

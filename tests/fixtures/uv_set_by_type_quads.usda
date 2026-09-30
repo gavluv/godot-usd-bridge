@@ -24,7 +24,7 @@
       Only the NAME differs from fv_uv_seam_quads.usda.
 
     EXPECTED -- identical to fv_uv_seam_quads.usda
-      - 8 vertices, 12 indices, [0, 1, 2,  0, 2, 3,  6, 7, 4,  6, 4, 5]
+      - 8 vertices, 12 indices, [0, 2, 1,  0, 3, 2,  6, 4, 7,  6, 5, 4]
       - the same UVs after the V-flip:
           (0,1) (0,0) (.5,0) (.5,1) (1,0) (1,1) (.75,1) (.75,0)
       - AABB spans (-2, 0, -1) to (2, 0, 1)

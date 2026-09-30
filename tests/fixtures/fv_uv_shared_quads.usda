@@ -26,7 +26,7 @@
     EXPECTED
       - 6 vertices, not 8. The dedup key for corners 3 and 4 is identical, so
         the second one reuses the vertex the first created; likewise 2 and 5.
-      - 12 indices, [0, 1, 2,  0, 2, 3,  3, 2, 4,  3, 4, 5]
+      - 12 indices, [0, 2, 1,  0, 3, 2,  3, 4, 2,  3, 5, 4]
         -- byte-identical to shared_edge_quads.usda's expected output
       - AABB spans (-2, 0, -1) to (2, 0, 1)
       - warn_flags == 0

@@ -34,7 +34,7 @@
         No unused-indices warning: the counts and the index array agree.
       - 4 vertices, not 6. Slots 0..3 are claimed by the quad's corners; slots
         4 and 5 are never claimed and compaction removes them.
-      - 6 indices, [0, 1, 2, 0, 2, 3] -- unchanged by the remap, because the
+      - 6 indices, [0, 2, 1, 0, 3, 2] -- unchanged by the remap, because the
         removed slots sit after every surviving one
       - AABB spans (1, 0, 1) to (3, 0, 3)
 

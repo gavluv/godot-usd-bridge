@@ -24,7 +24,7 @@
     EXPECTED
       - conversion SUCCEEDS and the channel is KEPT, with 3 authored normals
         and 1 substituted
-      - 4 vertices, 6 indices, [0, 1, 2, 0, 2, 3]
+      - 4 vertices, 6 indices, [0, 2, 1, 0, 3, 2]
       - AABB spans (-1, 0, -1) to (1, 0, 1)
       - warns [NORMALS] contains zero-length normal value, and nothing else
 

@@ -2,6 +2,8 @@
 
 #include <godot_cpp/variant/vector3.hpp>
 #include <godot_cpp/variant/vector2.hpp>
+#include <godot_cpp/variant/plane.hpp>
+#include <godot_cpp/classes/global_constants.hpp>
 
 #include <pxr/base/vt/array.h>
 #include <pxr/base/gf/vec3f.h>
@@ -174,7 +176,7 @@ TEST_CASE("mesh_convert: quad_mesh.usda converts correctly") {
 	auto mesh_data = godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/Quad")));
 	CHECK(mesh_data.is_valid());
 	CHECK(mesh_data.warn_flags == 0);
-	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3});
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 2, 1, 0, 3, 2});
 	CHECK(mesh_data.positions.size() == 4);
 	CHECK(mesh_data.positions[0] == godot::Vector3(-1, 0, -1));
 	CHECK(mesh_data.positions[1] == godot::Vector3(-1, 0, 1));
@@ -236,7 +238,7 @@ TEST_CASE("mesh_convert: shared_edge_quads.usda converts correctly") {
 	auto mesh_data = godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/SharedEdgeQuads")));
 	CHECK(mesh_data.is_valid());
 	CHECK(mesh_data.warn_flags == 0);
-	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3, 3, 2, 4, 3, 4, 5});
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 2, 1, 0, 3, 2, 3, 4, 2, 3, 5, 4});
 	CHECK(mesh_data.positions.size() == 6);
 	CHECK(mesh_data.positions[0] == godot::Vector3(-2, 0, -1));
 	CHECK(mesh_data.positions[1] == godot::Vector3(-2, 0, 1));
@@ -521,7 +523,8 @@ TEST_CASE("mesh_convert: faceVarying UV seam quads mesh converts with vertices s
 	auto uvs_params = godot_usd::translate::MeshChannelParams<PXR_NS::GfVec2f>{
 			godot_usd::translate::InterpolationMode::FACE_VARYING, uvs_values};
 
-	auto mesh_data = godot_usd::translate::to_mesh_data(face_counts, face_indices, points, std::nullopt, uvs_params);
+	auto mesh_data = godot_usd::translate::to_mesh_data(
+			face_counts, face_indices, points, /*p_flip_winding=*/false, std::nullopt, uvs_params);
 	CHECK(mesh_data.is_valid());
 	CHECK(mesh_data.warn_flags == 0);
 	CHECK(mesh_data.uvs_warn_flags == 0);
@@ -542,7 +545,8 @@ TEST_CASE("mesh_convert: uniform UV quads mesh converts correctly, per-face valu
 	auto uvs_params = godot_usd::translate::MeshChannelParams<PXR_NS::GfVec2f>{
 			godot_usd::translate::InterpolationMode::UNIFORM, uvs_values};
 
-	auto mesh_data = godot_usd::translate::to_mesh_data(face_counts, face_indices, points, std::nullopt, uvs_params);
+	auto mesh_data = godot_usd::translate::to_mesh_data(
+			face_counts, face_indices, points, /*p_flip_winding=*/false, std::nullopt, uvs_params);
 	CHECK(mesh_data.is_valid());
 	CHECK(mesh_data.warn_flags == 0);
 	CHECK(mesh_data.uvs_warn_flags == 0);
@@ -563,7 +567,8 @@ TEST_CASE("mesh_convert: constant UV quads mesh converts correctly, shared verti
 	auto uvs_params = godot_usd::translate::MeshChannelParams<PXR_NS::GfVec2f>{
 			godot_usd::translate::InterpolationMode::CONSTANT, uvs_values};
 
-	auto mesh_data = godot_usd::translate::to_mesh_data(face_counts, face_indices, points, std::nullopt, uvs_params);
+	auto mesh_data = godot_usd::translate::to_mesh_data(
+			face_counts, face_indices, points, /*p_flip_winding=*/false, std::nullopt, uvs_params);
 	CHECK(mesh_data.is_valid());
 	CHECK(mesh_data.warn_flags == 0);
 	CHECK(mesh_data.uvs_warn_flags == 0);
@@ -582,7 +587,8 @@ TEST_CASE("mesh_convert: quad mesh with a degenerate face converts with DEGENERA
 			PXR_NS::GfVec3f(3, 0, 3), PXR_NS::GfVec3f(3, 0, 1), PXR_NS::GfVec3f(100, 0, 100),
 			PXR_NS::GfVec3f(-100, 0, -100)};
 
-	auto mesh_data = godot_usd::translate::to_mesh_data(face_counts, face_indices, points, std::nullopt, std::nullopt);
+	auto mesh_data = godot_usd::translate::to_mesh_data(
+			face_counts, face_indices, points, /*p_flip_winding=*/false, std::nullopt, std::nullopt);
 	CHECK(mesh_data.is_valid());
 	CHECK(mesh_data.warn_flags == godot_usd::translate::MESH_CONVERT_WARN_DEGENERATE_FACES);
 	CHECK(mesh_data.positions.size() == 4);
@@ -607,7 +613,8 @@ TEST_CASE("mesh_convert: faceVarying UV/normal seam quads mesh with unreferenced
 	auto uvs_params = godot_usd::translate::MeshChannelParams<PXR_NS::GfVec2f>{
 			godot_usd::translate::InterpolationMode::FACE_VARYING, uvs_values};
 
-	auto mesh_data = godot_usd::translate::to_mesh_data(face_counts, face_indices, points, normals_params, uvs_params);
+	auto mesh_data = godot_usd::translate::to_mesh_data(
+			face_counts, face_indices, points, /*p_flip_winding=*/false, normals_params, uvs_params);
 	CHECK(mesh_data.is_valid());
 	CHECK(mesh_data.warn_flags == 0);
 	CHECK(mesh_data.normals_warn_flags == 0);
@@ -640,7 +647,8 @@ TEST_CASE("mesh_convert: faceVarying UV shared edge quads mesh converts correctl
 	auto uvs_params = godot_usd::translate::MeshChannelParams<PXR_NS::GfVec2f>{
 			godot_usd::translate::InterpolationMode::FACE_VARYING, uvs_values};
 
-	auto mesh_data = godot_usd::translate::to_mesh_data(face_counts, face_indices, points, std::nullopt, uvs_params);
+	auto mesh_data = godot_usd::translate::to_mesh_data(
+			face_counts, face_indices, points, /*p_flip_winding=*/false, std::nullopt, uvs_params);
 	CHECK(mesh_data.is_valid());
 	CHECK(mesh_data.warn_flags == 0);
 	CHECK(mesh_data.uvs_warn_flags == 0);
@@ -668,7 +676,8 @@ TEST_CASE("mesh_convert: faceVarying UV/normal shared edge quads mesh converts c
 	auto uvs_params = godot_usd::translate::MeshChannelParams<PXR_NS::GfVec2f>{
 			godot_usd::translate::InterpolationMode::FACE_VARYING, uvs_values};
 
-	auto mesh_data = godot_usd::translate::to_mesh_data(face_counts, face_indices, points, normals_params, uvs_params);
+	auto mesh_data = godot_usd::translate::to_mesh_data(
+			face_counts, face_indices, points, /*p_flip_winding=*/false, normals_params, uvs_params);
 	CHECK(mesh_data.is_valid());
 	CHECK(mesh_data.warn_flags == 0);
 	CHECK(mesh_data.normals_warn_flags == 0);
@@ -698,7 +707,7 @@ TEST_CASE("mesh_convert: fv_uv_seam_quads.usda converts with vertices split corr
 	CHECK(mesh_data.normals_warn_flags == 0);
 	CHECK(mesh_data.uvs_warn_flags == 0);
 	CHECK(mesh_data.positions.size() == 8);
-	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3, 6, 7, 4, 6, 4, 5});
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 2, 1, 0, 3, 2, 6, 4, 7, 6, 5, 4});
 	check_godot_v2_vectors_equal(
 			mesh_data.uvs, std::vector<godot::Vector2>{godot::Vector2(0, 1), godot::Vector2(0, 0),
 								   godot::Vector2(.5, 0), godot::Vector2(.5, 1), godot::Vector2(1, 0),
@@ -717,7 +726,7 @@ TEST_CASE("mesh_convert: partial_orphan_mesh.usda converts with DEGENERATE_FACES
 	// behind HasPrimvar(st), so uvs_warn_flags has no reachable failure and is not asserted.
 	CHECK(mesh_data.normals_warn_flags == 0);
 	CHECK(mesh_data.positions.size() == 4);
-	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3});
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 2, 1, 0, 3, 2});
 }
 
 TEST_CASE("mesh_convert: fv_uv_seam_orphan_quads.usda converts with vertices split correctly, orphaned points "
@@ -731,7 +740,7 @@ TEST_CASE("mesh_convert: fv_uv_seam_orphan_quads.usda converts with vertices spl
 	CHECK(mesh_data.normals_warn_flags == 0);
 	CHECK(mesh_data.uvs_warn_flags == 0);
 	CHECK(mesh_data.positions.size() == 8);
-	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3, 6, 7, 4, 6, 4, 5});
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 2, 1, 0, 3, 2, 6, 4, 7, 6, 5, 4});
 	check_godot_v2_vectors_equal(
 			mesh_data.uvs, std::vector<godot::Vector2>{godot::Vector2(0, 1), godot::Vector2(0, 0),
 								   godot::Vector2(.5, 0), godot::Vector2(.5, 1), godot::Vector2(1, 0),
@@ -752,7 +761,7 @@ TEST_CASE("mesh_convert: fv_uv_shared_quads.usda converts correctly, shared vert
 	CHECK(mesh_data.normals_warn_flags == 0);
 	CHECK(mesh_data.uvs_warn_flags == 0);
 	CHECK(mesh_data.positions.size() == 6);
-	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3, 3, 2, 4, 3, 4, 5});
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 2, 1, 0, 3, 2, 3, 4, 2, 3, 5, 4});
 	check_godot_v2_vectors_equal(mesh_data.uvs,
 			std::vector<godot::Vector2>{godot::Vector2(0, 1), godot::Vector2(0, 0), godot::Vector2(.5, 0),
 					godot::Vector2(.5, 1), godot::Vector2(1, 0), godot::Vector2(1, 1)});
@@ -769,7 +778,7 @@ TEST_CASE(
 	CHECK(mesh_data.normals_warn_flags == 0);
 	CHECK(mesh_data.uvs_warn_flags == 0);
 	CHECK(mesh_data.positions.size() == 8);
-	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3, 6, 7, 4, 6, 4, 5});
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 2, 1, 0, 3, 2, 6, 4, 7, 6, 5, 4});
 	check_godot_v3_vectors_equal(
 			mesh_data.normals, std::vector<godot::Vector3>{godot::Vector3(0, 1, 0), godot::Vector3(0, 1, 0),
 									   godot::Vector3(0, 1, 0), godot::Vector3(0, 1, 0), godot::Vector3(1, 0, 0),
@@ -789,7 +798,7 @@ TEST_CASE("mesh_convert: float2_st_quad.usda converts correctly using float2[]-t
 	CHECK(mesh_data.normals_warn_flags == 0);
 	CHECK(mesh_data.uvs_warn_flags == 0);
 	CHECK(mesh_data.positions.size() == 4);
-	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3});
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 2, 1, 0, 3, 2});
 	check_godot_v2_vectors_equal(mesh_data.uvs, std::vector<godot::Vector2>{godot::Vector2(0, 1), godot::Vector2(0, 0),
 														godot::Vector2(1, 0), godot::Vector2(1, 1)});
 }
@@ -804,7 +813,7 @@ TEST_CASE("mesh_convert: uv_set_by_type_quads.usda converts correctly using UV p
 	CHECK(mesh_data.normals_warn_flags == 0);
 	CHECK(mesh_data.uvs_warn_flags == 0);
 	CHECK(mesh_data.positions.size() == 8);
-	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3, 6, 7, 4, 6, 4, 5});
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 2, 1, 0, 3, 2, 6, 4, 7, 6, 5, 4});
 	check_godot_v2_vectors_equal(
 			mesh_data.uvs, std::vector<godot::Vector2>{godot::Vector2(0, 1), godot::Vector2(0, 0),
 								   godot::Vector2(.5, 0), godot::Vector2(.5, 1), godot::Vector2(1, 0),
@@ -822,7 +831,7 @@ TEST_CASE("mesh_convert: malformed_st_fallback_quad.usda converts with BAD_PRIMA
 	CHECK(mesh_data.normals_warn_flags == 0);
 	CHECK(mesh_data.uvs_warn_flags == godot_usd::translate::MESH_CONVERT_CHANNEL_WARN_BAD_PRIMARY_UVS_PRIMVAR);
 	CHECK(mesh_data.positions.size() == 4);
-	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3});
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 2, 1, 0, 3, 2});
 	check_godot_v2_vectors_equal(
 			mesh_data.uvs, std::vector<godot::Vector2>{godot::Vector2(.25, .75), godot::Vector2(.25, .25),
 								   godot::Vector2(.75, .25), godot::Vector2(.75, .75)});
@@ -845,7 +854,7 @@ TEST_CASE("mesh_convert: uv_fallback_after_bad_candidate_quad.usda converts corr
 	CHECK(mesh_data.normals_warn_flags == 0);
 	CHECK(mesh_data.uvs_warn_flags == 0);
 	CHECK(mesh_data.positions.size() == 4);
-	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3});
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 2, 1, 0, 3, 2});
 	check_godot_v2_vectors_equal(mesh_data.uvs, std::vector<godot::Vector2>{godot::Vector2(0, 1), godot::Vector2(0, 0),
 														godot::Vector2(1, 0), godot::Vector2(1, 1)});
 }
@@ -879,4 +888,73 @@ TEST_CASE("mesh_convert: flip_triangles_winding flipping twice restores the inpu
 	godot_usd::translate::flip_triangles_winding(tris);
 	godot_usd::translate::flip_triangles_winding(tris);
 	check_int32_vectors_equal(tris, std::vector<int32_t>{3, 4, 5, 0, 1, 2});
+}
+
+TEST_CASE("mesh_convert: to_mesh_data with p_flip_winding true and false produces identical positions and UVs, and "
+		  "every triangle's 1/2 slots are swapped") {
+	PXR_NS::VtArray<int> face_counts{4, 4};
+	// Face 1 is [5, 3, 2, 4] so that its first fan triangle is [5, 3, 2], with 3/2 in its 1/2 slots; face 0 already
+	// claims points 2 and 3 with different UVs, so at face 1, 3 and 2 split and are appended as positions 6 and 7.
+	// This pins where the winding flip occurs because if the flip happens before splitting, face 1's first triangle
+	// is [5, 2, 3], 3/2 become 7/6, and the final positions arrays are different between the two calls.
+	PXR_NS::VtArray<int> face_indices{0, 1, 2, 3, 5, 3, 2, 4};
+	PXR_NS::VtArray<PXR_NS::GfVec3f> points{PXR_NS::GfVec3f(-2, 0, -1), PXR_NS::GfVec3f(-2, 0, 1),
+			PXR_NS::GfVec3f(0, 0, 1), PXR_NS::GfVec3f(0, 0, -1), PXR_NS::GfVec3f(2, 0, 1), PXR_NS::GfVec3f(2, 0, -1)};
+	PXR_NS::VtArray<PXR_NS::GfVec2f> uvs_values{PXR_NS::GfVec2f(0, 0), PXR_NS::GfVec2f(0, 1), PXR_NS::GfVec2f(.5, 1),
+			PXR_NS::GfVec2f(.5, 0), PXR_NS::GfVec2f(1, 0), PXR_NS::GfVec2f(.75, 0), PXR_NS::GfVec2f(.75, 1),
+			PXR_NS::GfVec2f(1, 1)};
+	auto uvs_params = godot_usd::translate::MeshChannelParams<PXR_NS::GfVec2f>{
+			godot_usd::translate::InterpolationMode::FACE_VARYING, uvs_values};
+
+	auto mesh_data_no_flip = godot_usd::translate::to_mesh_data(
+			face_counts, face_indices, points, /*p_flip_winding=*/false, std::nullopt, uvs_params);
+	CHECK(mesh_data_no_flip.is_valid());
+	CHECK(mesh_data_no_flip.warn_flags == 0);
+	CHECK(mesh_data_no_flip.uvs_warn_flags == 0);
+
+	auto mesh_data_with_flip = godot_usd::translate::to_mesh_data(
+			face_counts, face_indices, points, /*p_flip_winding=*/true, std::nullopt, uvs_params);
+	CHECK(mesh_data_with_flip.is_valid());
+	CHECK(mesh_data_with_flip.warn_flags == 0);
+	CHECK(mesh_data_with_flip.uvs_warn_flags == 0);
+
+	check_godot_v3_vectors_equal(mesh_data_with_flip.positions, mesh_data_no_flip.positions);
+	check_godot_v2_vectors_equal(mesh_data_with_flip.uvs, mesh_data_no_flip.uvs);
+
+	REQUIRE(mesh_data_no_flip.triangles.size() == 12);
+	REQUIRE(mesh_data_with_flip.triangles.size() == 12);
+
+	for (size_t t = 0; t < 4; ++t) {
+		size_t tidx0 = t * 3;
+		CHECK(mesh_data_no_flip.triangles[tidx0] == mesh_data_with_flip.triangles[tidx0]);
+		CHECK(mesh_data_no_flip.triangles[tidx0 + 1] == mesh_data_with_flip.triangles[tidx0 + 2]);
+		CHECK(mesh_data_no_flip.triangles[tidx0 + 2] == mesh_data_with_flip.triangles[tidx0 + 1]);
+	}
+}
+
+TEST_CASE("mesh_convert: quad_mesh.usda's triangles have the correct orientation after winding order is flipped per "
+		  "godot::Plane's normal direction calculation") {
+	// This is the only test that asserts the winding flip's direction without an explicit expected triangles array.
+	// Expected triangles in other tests encode the same assumption the code applies, so they would pass even if the
+	// flipped winding faced the wrong way.
+	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("quad_mesh.usda"));
+	REQUIRE(stage != nullptr);
+	auto mesh_data = godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/Quad")));
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == 0);
+	REQUIRE(mesh_data.triangles.size() == 6);
+	for (size_t t = 0; t < 2; ++t) {
+		CAPTURE(t);
+		int32_t pidx0 = mesh_data.triangles[3 * t];
+		REQUIRE(pidx0 < mesh_data.positions.size());
+		int32_t pidx1 = mesh_data.triangles[3 * t + 1];
+		REQUIRE(pidx1 < mesh_data.positions.size());
+		int32_t pidx2 = mesh_data.triangles[3 * t + 2];
+		REQUIRE(pidx2 < mesh_data.positions.size());
+		// asserts that this mesh's post-flip front face direction is consistent with Godot's definition of clockwise
+		CHECK(godot::Plane(
+				mesh_data.positions[pidx0], mesh_data.positions[pidx1], mesh_data.positions[pidx2], godot::CLOCKWISE)
+						.get_normal()
+						.is_equal_approx(godot::Vector3(0, 1, 0)));
+	}
 }

@@ -32,7 +32,7 @@
       alone splits point 3, and normals alone split point 2.
 
     EXPECTED
-      - 8 vertices, 12 indices, [0, 1, 2,  0, 2, 3,  6, 7, 4,  6, 4, 5]
+      - 8 vertices, 12 indices, [0, 2, 1,  0, 3, 2,  6, 4, 7,  6, 5, 4]
         -- the same index array as fv_uv_seam_quads.usda
       - UVs after the V-flip, per vertex:
           (0,1) (0,0) (.5,0) (.5,1) (0,0) (.5,1) (0,1) (.5,0)

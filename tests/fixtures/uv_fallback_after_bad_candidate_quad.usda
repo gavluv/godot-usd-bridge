@@ -25,7 +25,7 @@
       picking the wrong one is obvious in the UV assertion.
 
     EXPECTED
-      - 4 vertices, 6 indices, [0, 1, 2, 0, 2, 3]
+      - 4 vertices, 6 indices, [0, 2, 1, 0, 3, 2]
       - UVs after the V-flip, from GoodUV: (0,1) (0,0) (1,0) (1,1)
       - AABB spans (-1, 0, -1) to (1, 0, 1)
       - uvs_warn_flags == 0. BadUV's 'invalid interpolation mode' is raised

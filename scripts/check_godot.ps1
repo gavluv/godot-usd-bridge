@@ -99,16 +99,20 @@ $FixtureExpectations = [ordered]@{
 		"nodes: 3"
 	)
 	"quad_mesh"                  = @(
-		# Fan triangulation of a single quad: 4 corners -> 2 triangles.
-		"mesh='Quad' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
+		# Fan triangulation of a single quad: 4 corners -> 2 triangles. Each
+		# triangle's second and third entries are swapped for Godot's clockwise
+		# front faces (task 1.5), so [0, 1, 2, 0, 2, 3] here means the flip was
+		# lost.
+		"mesh='Quad' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 2, 1, 0, 3, 2]",
 		"aabb_pos=(-1.0000, 0.0000, -1.0000) aabb_size=(2.0000, 0.0000, 2.0000)",
 		"nodes: 3"
 	)
 	"shared_edge_quads"          = @(
 		# Non-identity faceVertexIndices: corner offsets and point indices
 		# diverge from entry 6 on, so this catches conflating the two. Corner
-		# offsets would be [.. 4,5,6, 4,6,7]; point indices differ.
-		"mesh='SharedEdgeQuads' surfaces=1 surf0[verts=6 indices=12 tris=4] idx=[0, 1, 2, 0, 2, 3, 3, 2, 4, 3, 4, 5]",
+		# offsets would come out as [.. 4,6,5, 4,7,6] after the winding flip;
+		# point indices differ.
+		"mesh='SharedEdgeQuads' surfaces=1 surf0[verts=6 indices=12 tris=4] idx=[0, 2, 1, 0, 3, 2, 3, 4, 2, 3, 5, 4]",
 		"aabb_pos=(-2.0000, 0.0000, -1.0000) aabb_size=(4.0000, 0.0000, 2.0000)",
 		"nodes: 3"
 	)
@@ -157,7 +161,7 @@ $FixtureExpectations = [ordered]@{
 		# to fall back on -- the token decides both how many values to expect
 		# and which one each corner gets -- so the channel is dropped.
 		"WARNING: USD mesh conversion warnings: /Root/BogusInterp ([UVS] invalid interpolation mode)",
-		"mesh='BogusInterp' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
+		"mesh='BogusInterp' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 2, 1, 0, 3, 2]",
 		"nodes: 3"
 	)
 	"oversized_primvar"          = @(
@@ -165,7 +169,7 @@ $FixtureExpectations = [ordered]@{
 		# still resolves and the surplus is ignored. Must say 'unused', not
 		# 'truncated', and must NOT drop the channel.
 		"WARNING: USD mesh conversion warnings: /Root/OversizedPrimvar ([UVS] unused values)",
-		"mesh='OversizedPrimvar' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
+		"mesh='OversizedPrimvar' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 2, 1, 0, 3, 2]",
 		"nodes: 3"
 	)
 	"elementsize_primvar"        = @(
@@ -173,7 +177,7 @@ $FixtureExpectations = [ordered]@{
 		# rather than a surplus. Ignoring elementSize lands this in the 'unused
 		# values' branch instead and assigns stride garbage to half the mesh.
 		"WARNING: USD mesh conversion warnings: /Root/ElementSizePrimvar ([UVS] unexpected element size)",
-		"mesh='ElementSizePrimvar' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
+		"mesh='ElementSizePrimvar' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 2, 1, 0, 3, 2]",
 		"nodes: 3"
 	)
 	"no_normals_mesh"            = @(
@@ -183,7 +187,7 @@ $FixtureExpectations = [ordered]@{
 		# regression test for warning on every mesh that leaves normals to the
 		# renderer.
 		"WARNING: USD mesh conversion warnings: /Root/NoNormals (degenerate faces)",
-		"mesh='NoNormals' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
+		"mesh='NoNormals' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 2, 1, 0, 3, 2]",
 		"nodes: 3"
 	)
 	"zero_normal_mesh"           = @(
@@ -191,7 +195,7 @@ $FixtureExpectations = [ordered]@{
 		# KEPT, with (0, 1, 0) substituted -- the opposite disposition from the
 		# count-mismatch fixtures, which warn and drop.
 		"WARNING: USD mesh conversion warnings: /Root/ZeroNormal ([NORMALS] contains zero-length normal value)",
-		"mesh='ZeroNormal' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
+		"mesh='ZeroNormal' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 2, 1, 0, 3, 2]",
 		"nodes: 3"
 	)
 	"normals_precedence"         = @(
@@ -200,7 +204,7 @@ $FixtureExpectations = [ordered]@{
 		# REPLACED, so 'invalid interpolation mode' appearing here is a failure
 		# even though the primvar really did have one.
 		"WARNING: USD mesh conversion warnings: /Root/NormalsPrecedence ([NORMALS] malformed normals primvar)",
-		"mesh='NormalsPrecedence' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
+		"mesh='NormalsPrecedence' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 2, 1, 0, 3, 2]",
 		"nodes: 3"
 	)
 	"blocked_normals"            = @(
@@ -208,7 +212,7 @@ $FixtureExpectations = [ordered]@{
 		# warn. Get() fails on a block, so no channel is built and the count
 		# check is never reached: 'no authored values', never 'truncated'.
 		"WARNING: USD mesh conversion warnings: /Root/BlockedNormals ([NORMALS] no authored values)",
-		"mesh='BlockedNormals' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
+		"mesh='BlockedNormals' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 2, 1, 0, 3, 2]",
 		"nodes: 3"
 	)
 	"empty_normals_array"        = @(
@@ -217,7 +221,7 @@ $FixtureExpectations = [ordered]@{
 		# validate_channel through normals rather than a primvar, and the only
 		# one covering the short-array direction.
 		"WARNING: USD mesh conversion warnings: /Root/EmptyNormalsArray ([NORMALS] truncated values)",
-		"mesh='EmptyNormalsArray' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
+		"mesh='EmptyNormalsArray' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 2, 1, 0, 3, 2]",
 		"nodes: 3"
 	)
 	# ---- vertex splitting and compaction (task 1.4) ---------------------
@@ -232,7 +236,7 @@ $FixtureExpectations = [ordered]@{
 		# duplicate existing positions, so the AABB must NOT move -- a splitter
 		# that appended wrong positions keeps the vertex count right and shows
 		# up only here.
-		"mesh='FvUvSeamQuads' surfaces=1 surf0[verts=8 indices=12 tris=4] idx=[0, 1, 2, 0, 2, 3, 6, 7, 4, 6, 4, 5]",
+		"mesh='FvUvSeamQuads' surfaces=1 surf0[verts=8 indices=12 tris=4] idx=[0, 2, 1, 0, 3, 2, 6, 4, 7, 6, 5, 4]",
 		"aabb_pos=(-2.0000, 0.0000, -1.0000) aabb_size=(4.0000, 0.0000, 2.0000)",
 		"nodes: 3"
 	)
@@ -243,7 +247,7 @@ $FixtureExpectations = [ordered]@{
 		# apart from the mesh name, and that sameness IS the assertion --
 		# authored points that no face uses must leave no trace. Do not
 		# collapse the two entries.
-		"mesh='FvUvSeamOrphanQuads' surfaces=1 surf0[verts=8 indices=12 tris=4] idx=[0, 1, 2, 0, 2, 3, 6, 7, 4, 6, 4, 5]",
+		"mesh='FvUvSeamOrphanQuads' surfaces=1 surf0[verts=8 indices=12 tris=4] idx=[0, 2, 1, 0, 3, 2, 6, 4, 7, 6, 5, 4]",
 		"aabb_pos=(-2.0000, 0.0000, -1.0000) aabb_size=(4.0000, 0.0000, 2.0000)",
 		"nodes: 3"
 	)
@@ -254,7 +258,7 @@ $FixtureExpectations = [ordered]@{
 		# carries nothing on its own. Catches a splitter that emits a vertex
 		# per corner whenever a faceVarying channel is present, which renders
 		# correctly and is invisible by eye.
-		"mesh='FvUvSharedQuads' surfaces=1 surf0[verts=6 indices=12 tris=4] idx=[0, 1, 2, 0, 2, 3, 3, 2, 4, 3, 4, 5]",
+		"mesh='FvUvSharedQuads' surfaces=1 surf0[verts=6 indices=12 tris=4] idx=[0, 2, 1, 0, 3, 2, 3, 4, 2, 3, 5, 4]",
 		"aabb_pos=(-2.0000, 0.0000, -1.0000) aabb_size=(4.0000, 0.0000, 2.0000)",
 		"nodes: 3"
 	)
@@ -266,7 +270,7 @@ $FixtureExpectations = [ordered]@{
 		# (0, 0, 0) to (3, 0, 3). Godot bounds the whole ARRAY_VERTEX, so this
 		# is the culling bound too.
 		"WARNING: USD mesh conversion warnings: /Root/PartialOrphan (degenerate faces)",
-		"mesh='PartialOrphan' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
+		"mesh='PartialOrphan' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 2, 1, 0, 3, 2]",
 		"aabb_pos=(1.0000, 0.0000, 1.0000) aabb_size=(2.0000, 0.0000, 2.0000)",
 		"nodes: 3"
 	)
@@ -278,7 +282,7 @@ $FixtureExpectations = [ordered]@{
 		# dropped and the count falls to 7, with a different idx depending on
 		# which one. Losing both gives 6. Do not "simplify" the fixture's
 		# index arrays -- overlapping splits would mask either failure at 8.
-		"mesh='IndexedPrimvarsQuads' surfaces=1 surf0[verts=8 indices=12 tris=4] idx=[0, 1, 2, 0, 2, 3, 6, 7, 4, 6, 4, 5]",
+		"mesh='IndexedPrimvarsQuads' surfaces=1 surf0[verts=8 indices=12 tris=4] idx=[0, 2, 1, 0, 3, 2, 6, 4, 7, 6, 5, 4]",
 		"aabb_pos=(-2.0000, 0.0000, -1.0000) aabb_size=(4.0000, 0.0000, 2.0000)",
 		"nodes: 3"
 	)
@@ -299,7 +303,7 @@ $FixtureExpectations = [ordered]@{
 		# HasPrimvar('st') is false and the channel is never built. The vertex
 		# count is what surfaces it: 6 rather than 8, because with no UV
 		# channel in the key the seam stops splitting.
-		"mesh='UvSetByTypeQuads' surfaces=1 surf0[verts=8 indices=12 tris=4] idx=[0, 1, 2, 0, 2, 3, 6, 7, 4, 6, 4, 5]",
+		"mesh='UvSetByTypeQuads' surfaces=1 surf0[verts=8 indices=12 tris=4] idx=[0, 2, 1, 0, 3, 2, 6, 4, 7, 6, 5, 4]",
 		"aabb_pos=(-2.0000, 0.0000, -1.0000) aabb_size=(4.0000, 0.0000, 2.0000)",
 		"nodes: 3"
 	)
@@ -314,7 +318,7 @@ $FixtureExpectations = [ordered]@{
 		# implementation that ORs instead reports both, and the closing ')'
 		# is what catches it.
 		"WARNING: USD mesh conversion warnings: /Root/MalformedStFallbackQuad ([UVS] malformed primary UV set primvar)",
-		"mesh='MalformedStFallbackQuad' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
+		"mesh='MalformedStFallbackQuad' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 2, 1, 0, 3, 2]",
 		"aabb_pos=(-1.0000, 0.0000, -1.0000) aabb_size=(2.0000, 0.0000, 2.0000)",
 		"nodes: 3"
 	)

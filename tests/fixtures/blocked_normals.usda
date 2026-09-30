@@ -31,7 +31,7 @@
 
     EXPECTED
       - conversion SUCCEEDS; a blocked channel is not a geometry problem
-      - 4 vertices, 6 indices, [0, 1, 2, 0, 2, 3]
+      - 4 vertices, 6 indices, [0, 2, 1, 0, 3, 2]
       - AABB spans (-1, 0, -1) to (1, 0, 1)
       - warns [NORMALS] no authored values, and nothing else
 

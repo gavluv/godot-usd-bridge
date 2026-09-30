@@ -23,7 +23,7 @@
 
     EXPECTED
       - conversion SUCCEEDS; the geometry is unaffected by a bad primvar
-      - 4 vertices, 6 indices, [0, 1, 2, 0, 2, 3]
+      - 4 vertices, 6 indices, [0, 2, 1, 0, 3, 2]
       - AABB spans (-1, 0, -1) to (1, 0, 1)
       - warns [UVS] invalid interpolation mode, and nothing else
 

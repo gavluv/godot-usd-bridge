@@ -29,14 +29,16 @@
 
     EXPECTED -- Godot arrays
       ARRAY_VERTEX : 4 entries (the points, unmodified)
-      ARRAY_INDEX  : 6 entries, [0, 1, 2, 0, 2, 3]
+      ARRAY_INDEX  : 6 entries, [0, 2, 1, 0, 3, 2]
       one surface, PRIMITIVE_TRIANGLES
       AABB spans (-1, 0, -1) to (1, 0, 1)
 
+      ARRAY_INDEX is the point indices above with each triangle's second and
+      third entries swapped (task 1.5). USD's default rightHanded orientation
+      winds front faces counter-clockwise and Godot's are clockwise, so after
+      the swap this quad's front face is still the +Y side.
+
     NOT EXPECTED YET
-      - Winding is NOT flipped: task 1.3 emits USD order, and the CCW->CW flip
-        for Godot's front faces lands in task 1.5. Until then this quad faces
-        away from the camera when viewed from +Y.
       - No ARRAY_NORMAL: normals come from the primvar engine in task 1.4, so
         this mesh will shade oddly. Verify it structurally (vertex/index counts,
         AABB), not by eye.

@@ -91,7 +91,7 @@ void flip_triangles_winding(std::vector<int32_t> &r_tri_indices);
 
 MeshData to_mesh_data(const PXR_NS::VtArray<int> &p_face_vertex_counts,
 		const PXR_NS::VtArray<int> &p_face_vertex_indices, const PXR_NS::VtArray<PXR_NS::GfVec3f> &p_points,
-		const std::optional<MeshChannelParams<PXR_NS::GfVec3f>> &p_normals,
+		bool p_flip_winding, const std::optional<MeshChannelParams<PXR_NS::GfVec3f>> &p_normals,
 		const std::optional<MeshChannelParams<PXR_NS::GfVec2f>> &p_uvs);
 
 MeshData to_mesh_data(const PXR_NS::UsdPrim &p_prim);

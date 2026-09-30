@@ -32,7 +32,7 @@
       - 8 vertices. Slots 0..5 are the USD points in order; points 3 and 2 each
         split, appending vertices 6 and 7 respectively (in that order, because
         the split for point 3 is reached first, at triangle-list entry 6).
-      - 12 indices, [0, 1, 2,  0, 2, 3,  6, 7, 4,  6, 4, 5]
+      - 12 indices, [0, 2, 1,  0, 3, 2,  6, 4, 7,  6, 5, 4]
       - no orphans, so compaction is a no-op and the numbering above survives
       - AABB spans (-2, 0, -1) to (2, 0, 1) -- the appended vertices duplicate
         existing positions, so the bounds do not move

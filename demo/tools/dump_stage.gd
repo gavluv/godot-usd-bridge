@@ -67,9 +67,9 @@ func _dump(node: Node, depth: int) -> int:
 func _meta_or(node: Node, key: String, fallback: String) -> String:
 	return str(node.get_meta(key)) if node.has_meta(key) else fallback
 
-## Summarizes a MeshInstance3D's mesh structurally. Task 1.3 produces no
-## normals (1.4) and unflipped winding (1.5), so meshes are not meaningfully
-## viewable — counts and AABB are how you verify them.
+## Summarizes a MeshInstance3D's mesh structurally. godot_mesh() writes only
+## positions and indices until task 1.7, so meshes shade without normals;
+## counts, index arrays, and AABB are how you verify them.
 func _mesh_summary(mesh: Mesh) -> String:
 	if mesh == null:
 		return "  mesh=<none>"

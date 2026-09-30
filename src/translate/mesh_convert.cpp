@@ -85,7 +85,7 @@ static void lazy_build_corner_to_face(InterpolationMode p_check_mode, const PXR_
 
 MeshData to_mesh_data(const PXR_NS::VtArray<int> &p_face_vertex_counts,
 		const PXR_NS::VtArray<int> &p_face_vertex_indices, const PXR_NS::VtArray<PXR_NS::GfVec3f> &p_points,
-		const std::optional<MeshChannelParams<PXR_NS::GfVec3f>> &p_normals,
+		bool p_flip_winding, const std::optional<MeshChannelParams<PXR_NS::GfVec3f>> &p_normals,
 		const std::optional<MeshChannelParams<PXR_NS::GfVec2f>> &p_uvs) {
 	auto mesh_data = MeshData();
 	size_t corner_count = 0;
@@ -251,6 +251,13 @@ MeshData to_mesh_data(const PXR_NS::VtArray<int> &p_face_vertex_counts,
 		}
 	}
 
+	// Winding flip has to come after the dedup walk, because the dedup walk numbers split vertices in visit order.
+	// After dedup, the flip only permutes indices within each triangle, so the vertex buffers are identical for both
+	// orientations.
+	if (p_flip_winding) {
+		flip_triangles_winding(triangles);
+	}
+
 	mesh_data.triangles = std::move(triangles);
 
 	if (mesh_data.triangles.empty()) {
@@ -376,7 +383,12 @@ MeshData to_mesh_data(const PXR_NS::UsdPrim &p_prim) {
 		}
 	}
 
-	auto mesh_data = to_mesh_data(face_vertex_counts, face_vertex_indices, points, normals, uvs);
+	// Godot's front faces are clockwise and USD's default rightHanded orientation is counter-clockwise,
+	// so if this mesh is right handed we need to flip its winding order.
+	// TODO: read orientation via UsdGeomMesh.GetOrientationAttr()
+	const bool flip_winding = true;
+
+	auto mesh_data = to_mesh_data(face_vertex_counts, face_vertex_indices, points, flip_winding, normals, uvs);
 
 	mesh_data.normals_warn_flags |= normals_warnings;
 	mesh_data.uvs_warn_flags |= uvs_warnings;
