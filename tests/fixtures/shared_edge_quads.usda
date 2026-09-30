@@ -55,8 +55,9 @@
          6 points. A loop bounded by faceVertexIndices leaves the last 4
          entries unmapped; one bounded by points leaves the last 6.
 
-    NOT EXPECTED YET: there are no normals (task 1.4). Verify structurally, not
-    by eye."""
+    NOT EXPECTED YET: no ARRAY_NORMAL. This mesh authors no normals, and the
+    importer does not generate missing ones (task 1.7 decides whether it
+    should). Verify structurally, not by eye."""
     defaultPrim = "Root"
     metersPerUnit = 1
     upAxis = "Y"

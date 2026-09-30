@@ -39,9 +39,10 @@
       the swap this quad's front face is still the +Y side.
 
     NOT EXPECTED YET
-      - No ARRAY_NORMAL: normals come from the primvar engine in task 1.4, so
-        this mesh will shade oddly. Verify it structurally (vertex/index counts,
-        AABB), not by eye.
+      - No ARRAY_NORMAL: this mesh authors no normals, and the importer does
+        not generate missing ones (task 1.7 decides whether it should), so it
+        shades oddly. Verify it structurally (vertex/index counts, AABB), not
+        by eye.
 
     DETECTOR: an implementation that forgets to triangulate at all would try to
     hand Godot a 4-index face; one that fans from the wrong corner, or emits
