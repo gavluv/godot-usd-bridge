@@ -27,6 +27,9 @@ static godot::String get_warn_flags_string(const uint32_t p_warn_flags) {
 	if (p_warn_flags & MESH_CONVERT_WARN_UNUSED_FACE_INDICES) {
 		warn_parts.append("unused face indices");
 	}
+	if (p_warn_flags & MESH_CONVERT_WARN_INVALID_ORIENTATION) {
+		warn_parts.append("invalid orientation");
+	}
 
 	return godot::String("; ").join(warn_parts);
 }

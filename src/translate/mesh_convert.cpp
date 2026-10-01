@@ -383,13 +383,35 @@ MeshData to_mesh_data(const PXR_NS::UsdPrim &p_prim) {
 		}
 	}
 
+	uint32_t mesh_warnings = 0;
+
 	// Godot's front faces are clockwise and USD's default rightHanded orientation is counter-clockwise,
 	// so if this mesh is right handed we need to flip its winding order.
-	// TODO: read orientation via UsdGeomMesh.GetOrientationAttr()
-	const bool flip_winding = true;
+	bool flip_winding;
+	PXR_NS::TfToken orientation;
+	if (mesh.GetOrientationAttr().Get(&orientation)) {
+		if (orientation == PXR_NS::UsdGeomTokens->leftHanded) {
+			flip_winding = false;
+		} else {
+			if (orientation != PXR_NS::UsdGeomTokens->rightHanded) {
+				// if orientation is authored but invalid, warn and fall back to the rightHanded default
+				mesh_warnings |= MESH_CONVERT_WARN_INVALID_ORIENTATION;
+			}
+			flip_winding = true;
+		}
+	} else {
+		// If Get() fails, the orientation attribute is blocked. As of OpenUSD v26.05, pxr/usd/usd/attribute.h says
+		// Get() on a blocked attribute should return true if the attribute has a default value from the prim's schema,
+		// but at default time Get() returns false in such a case. See OpenUSD issue #4155, which hits the same
+		// behavior.
+		// We fall back to rightHanded silently, because a block means "as if unauthored", so the default is the
+		// intended result, not a defect.
+		flip_winding = true;
+	}
 
 	auto mesh_data = to_mesh_data(face_vertex_counts, face_vertex_indices, points, flip_winding, normals, uvs);
 
+	mesh_data.warn_flags |= mesh_warnings;
 	mesh_data.normals_warn_flags |= normals_warnings;
 	mesh_data.uvs_warn_flags |= uvs_warnings;
 

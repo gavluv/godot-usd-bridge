@@ -23,6 +23,7 @@ enum MeshConvertWarning {
 	MESH_CONVERT_WARN_NO_GEOMETRY = 1 << 0,
 	MESH_CONVERT_WARN_DEGENERATE_FACES = 1 << 1,
 	MESH_CONVERT_WARN_UNUSED_FACE_INDICES = 1 << 2,
+	MESH_CONVERT_WARN_INVALID_ORIENTATION = 1 << 3,
 };
 
 // Channel warnings accumulate across fallback attempts, e.g., failures encountered when no usable UV primvar is found
