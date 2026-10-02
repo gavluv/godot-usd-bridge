@@ -1,0 +1,67 @@
+#usda 1.0
+(
+    doc = """Mesh-import fixture (task 1.5): orientation explicitly BLOCKED
+    with `= None`, which must fall back to rightHanded WITHOUT a warning.
+
+    DOCTEST ONLY -- deliberately has no check_godot.ps1 entry. What this file
+    asserts is the ABSENCE of a warning on a successful import, and the golden
+    checker only matches lines that must be PRESENT. A regression here adds a
+    warning line and changes no geometry, so every needle it could carry would
+    still match. Only CHECK(warn_flags == 0) catches it.
+
+    The counterpart of blocked_normals.usda, with the opposite outcome: a
+    blocked `normals` warns, a blocked `orientation` must not.
+
+    TOPOLOGY -- the quad_mesh.usda quad
+      points            4 entries
+      faceVertexCounts  [4]
+      faceVertexIndices [0, 1, 2, 3]
+
+    THE BLOCK
+      `uniform token orientation = None` is a value block: an authored opinion
+      saying "resolve as if nothing were authored here". For `normals` that
+      leaves nothing at all, because the schema gives normals no default, so a
+      mesh that mentioned normals ends up without them and the importer says
+      so. `orientation` has a schema default, rightHanded, so "as if nothing
+      were authored" has a definite meaning, the same as never mentioning
+      orientation. That is what the author asked for, not a defect.
+
+      The trap is in how USD reports it. Measured on OpenUSD v26.05:
+
+        HasValue()                      yes  <- the schema default counts
+        GetResolveInfo().GetSource()    Fallback
+        Get() at a numeric time         yes, "rightHanded"
+        Get() at default time           NO
+
+      pxr/usd/usd/attribute.h documents that Get() succeeds on a blocked
+      attribute whose schema provides a default. At default time, which is
+      where the importer reads everything, it does not. OpenUSD issue #4155
+      hits the same behaviour. So when Get() fails the importer has to supply
+      the default itself.
+
+    EXPECTED
+      - conversion SUCCEEDS
+      - 4 vertices, 6 indices, [0, 2, 1, 0, 3, 2] -- flipped, as for rightHanded
+      - AABB spans (-1, 0, -1) to (1, 0, 1)
+      - no warnings: warn_flags, normals_warn_flags and uvs_warn_flags all 0
+
+    DETECTOR: an importer that ignores Get()'s return value reads an empty
+    token, which is neither rightHanded nor leftHanded, and reports "invalid
+    orientation" for a file whose author did nothing wrong. The geometry is
+    right either way, so warn_flags == 0 is the whole assertion."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Mesh "BlockedOrientationQuad"
+    {
+        float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        uniform token orientation = None
+        point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+    }
+}

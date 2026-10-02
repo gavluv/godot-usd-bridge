@@ -1,0 +1,54 @@
+#usda 1.0
+(
+    doc = """Mesh-import fixture (task 1.5): an orientation token that is not
+    one of USD's two, which must fall back to rightHanded and warn.
+
+    TOPOLOGY -- the quad_mesh.usda quad
+      points            4 entries
+      faceVertexCounts  [4]
+      faceVertexIndices [0, 1, 2, 3]
+
+    THE DEFECT
+      orientation = "LeftHanded", with a capital L. The schema allows exactly
+      `rightHanded` and `leftHanded`, but USD does not enforce the list: as of
+      OpenUSD v26.05 the file parses, Get() succeeds, and the token arrives
+      exactly as written. Token comparison is case-sensitive, so this matches
+      neither value and the importer is the first thing to notice.
+
+      Unlike an unknown interpolation (bogus_interp.usda), there is a safe
+      value to fall back on: the schema default, rightHanded. The mesh is
+      imported with it, and the warning is what tells the author the token was
+      not honoured. Here the quad comes out facing +Y although the author
+      plainly meant leftHanded. Importing something visible and saying so was
+      preferred over dropping the mesh.
+
+    EXPECTED
+      - conversion SUCCEEDS
+      - 4 vertices, 6 indices, [0, 2, 1, 0, 3, 2] -- flipped, as for rightHanded
+      - AABB spans (-1, 0, -1) to (1, 0, 1)
+      - warns invalid orientation, and nothing else
+
+    DETECTOR: two implementations pass every other fixture and fail here.
+      1. One that asks only "is it rightHanded?" and skips the flip otherwise
+         treats this file as leftHanded: [0, 1, 2, 0, 2, 3] and no warning.
+         That happens to match what this author meant, which is what makes it
+         tempting, and it is silently wrong for any other unknown token.
+      2. One that falls back correctly but stays quiet. Its index array is
+         identical to quad_mesh.usda's, so only the warning line separates the
+         two files."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Mesh "InvalidOrientationQuad"
+    {
+        float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        uniform token orientation = "LeftHanded"
+        point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+    }
+}

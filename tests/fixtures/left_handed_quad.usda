@@ -1,0 +1,56 @@
+#usda 1.0
+(
+    doc = """Mesh-import fixture (task 1.5): a mesh authored with
+    orientation = "leftHanded", whose winding must NOT be flipped.
+
+    The twin of quad_mesh.usda. Points, counts and indices are identical; the
+    orientation token is the only difference. Read the two together: the same
+    input arrays must produce different index arrays.
+
+    TOPOLOGY -- the quad_mesh.usda quad
+      points            4 entries
+      faceVertexCounts  [4]
+      faceVertexIndices [0, 1, 2, 3]
+
+    ORIENTATION
+      USD's `orientation` says which rule turns a face's winding into its
+      surface normal: the right-hand rule (rightHanded, the schema default) or
+      the left-hand rule (leftHanded).
+
+      This quad winds counter-clockwise as seen from +Y. Under the right-hand
+      rule that makes +Y the front, which is quad_mesh.usda. Under the
+      left-hand rule the same winding makes -Y the front: seen from below, the
+      corners run clockwise.
+
+      Godot's front faces are the clockwise ones. A rightHanded mesh therefore
+      needs each triangle's second and third entries swapped, while a
+      leftHanded mesh is already in Godot's convention and must be left alone.
+
+    EXPECTED
+      - 4 vertices, 6 indices, [0, 1, 2, 0, 2, 3] -- the fan triangulation,
+        unswapped
+      - the front face is the -Y side, as authored
+      - AABB spans (-1, 0, -1) to (1, 0, 1)
+      - no warning line
+
+    DETECTOR: an importer that never reads orientation flips every mesh, emits
+    [0, 2, 1, 0, 3, 2] here, and turns this quad to face +Y, the opposite of
+    what the file says. That output is indistinguishable from quad_mesh.usda's,
+    so the index array differing between the two files is the whole
+    assertion."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Mesh "LeftHandedQuad"
+    {
+        float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        uniform token orientation = "leftHanded"
+        point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+    }
+}
