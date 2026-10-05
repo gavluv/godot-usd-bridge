@@ -958,3 +958,47 @@ TEST_CASE("mesh_convert: quad_mesh.usda's triangles have the correct orientation
 						.is_equal_approx(godot::Vector3(0, 1, 0)));
 	}
 }
+
+TEST_CASE("mesh_convert: left_handed_quad.usda converts correctly, with its triangle winding order not flipped") {
+	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("left_handed_quad.usda"));
+	REQUIRE(stage != nullptr);
+	auto mesh_data = godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/LeftHandedQuad")));
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == 0);
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 1, 2, 0, 2, 3});
+	for (size_t t = 0; t < 2; ++t) {
+		CAPTURE(t);
+		int32_t pidx0 = mesh_data.triangles[3 * t];
+		REQUIRE(pidx0 < mesh_data.positions.size());
+		int32_t pidx1 = mesh_data.triangles[3 * t + 1];
+		REQUIRE(pidx1 < mesh_data.positions.size());
+		int32_t pidx2 = mesh_data.triangles[3 * t + 2];
+		REQUIRE(pidx2 < mesh_data.positions.size());
+		CHECK(godot::Plane(
+				mesh_data.positions[pidx0], mesh_data.positions[pidx1], mesh_data.positions[pidx2], godot::CLOCKWISE)
+						.get_normal()
+						.is_equal_approx(godot::Vector3(0, -1, 0)));
+	}
+}
+
+TEST_CASE("mesh_convert: invalid_orientation_quad.usda converts with INVALID_ORIENTATION warning and winding flipped") {
+	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("invalid_orientation_quad.usda"));
+	REQUIRE(stage != nullptr);
+	auto mesh_data =
+			godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/InvalidOrientationQuad")));
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == godot_usd::translate::MESH_CONVERT_WARN_INVALID_ORIENTATION);
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 2, 1, 0, 3, 2});
+}
+
+TEST_CASE("mesh_convert: blocked_orientation_quad.usda converts with no warnings and winding flipped") {
+	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("blocked_orientation_quad.usda"));
+	REQUIRE(stage != nullptr);
+	auto mesh_data =
+			godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/BlockedOrientationQuad")));
+	CHECK(mesh_data.is_valid());
+	CHECK(mesh_data.warn_flags == 0);
+	CHECK(mesh_data.normals_warn_flags == 0);
+	CHECK(mesh_data.uvs_warn_flags == 0);
+	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 2, 1, 0, 3, 2});
+}

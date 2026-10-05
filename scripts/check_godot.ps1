@@ -322,6 +322,38 @@ $FixtureExpectations = [ordered]@{
 		"aabb_pos=(-1.0000, 0.0000, -1.0000) aabb_size=(2.0000, 0.0000, 2.0000)",
 		"nodes: 3"
 	)
+	# ---- orientation (task 1.5) -----------------------------------------
+	# blocked_orientation_quad has no entry here, deliberately. It asserts the
+	# ABSENCE of a warning, and a regression adds one without moving any
+	# geometry, so every needle it could carry would still match. It is
+	# doctest-only; its doc says why.
+	"left_handed_quad"           = @(
+		# The twin of quad_mesh, differing only in orientation = "leftHanded".
+		# A leftHanded mesh is already in Godot's clockwise convention, so the
+		# winding must NOT be flipped and the index array is the bare fan. An
+		# importer that ignores orientation emits quad_mesh's flipped array
+		# instead. The AABB matches quad_mesh's and carries nothing on its own.
+		"mesh='LeftHandedQuad' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 1, 2, 0, 2, 3]",
+		"aabb_pos=(-1.0000, 0.0000, -1.0000) aabb_size=(2.0000, 0.0000, 2.0000)",
+		"nodes: 3"
+	)
+	"invalid_orientation_quad"   = @(
+		# 'LeftHanded' with a capital L. USD does not enforce the allowed
+		# tokens, so it reaches the importer verbatim and matches neither. The
+		# fallback to rightHanded makes the index array flipped and identical
+		# to quad_mesh's, so the WARNING line is the only thing separating this
+		# from a silent fallback. It is pinned from the WARNING: prefix (log
+		# level) through the closing ')' (no extra warnings), and it is the
+		# only test of the message text, which lives in mesh_import.cpp outside
+		# the doctest exe.
+		#
+		# A converter that treats anything but rightHanded as leftHanded leaves
+		# the array unflipped and stays quiet, failing both needles.
+		"WARNING: USD mesh conversion warnings: /Root/InvalidOrientationQuad (invalid orientation)",
+		"mesh='InvalidOrientationQuad' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 2, 1, 0, 3, 2]",
+		"aabb_pos=(-1.0000, 0.0000, -1.0000) aabb_size=(2.0000, 0.0000, 2.0000)",
+		"nodes: 3"
+	)
 }
 
 $SmokeExpectations = @(
