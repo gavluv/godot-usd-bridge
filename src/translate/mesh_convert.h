@@ -62,6 +62,9 @@ enum class InterpolationMode {
 	FACE_VARYING,
 };
 
+// Triangle winding order and UVs are in Godot's conventions (clockwise front faces, V flipped). Positions stay in the
+// stage's units and up-axis, corrected by the imported root node's transform. The import layer constructs an ArrayMesh
+// via mechanical copy into Godot's arrays (ADR-007).
 struct MeshData {
 	uint32_t warn_flags = 0;
 	MeshConvertError error_reason = MeshConvertError::UNSET;
