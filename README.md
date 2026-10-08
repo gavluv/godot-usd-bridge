@@ -83,7 +83,6 @@ The translation core (`src/translate/`) is written by hand. AI assistance (Claud
 
 - [Spec & task breakdown](docs/godot-usd-bridge-spec.md) — pinned versions, milestones, architecture, and decisions.
 - [AI-assisted development policy](docs/godot-usd-bridge-ai-policy.md) — the tiering and disclosure model behind the workflow above.
-- [Knowledge base](docs/godot-usd-bridge-knowledge-base.md) — plain-language reference for the USD, Godot, and build concepts the project touches.
 
 ## License
 
