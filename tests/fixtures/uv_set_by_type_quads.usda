@@ -3,7 +3,7 @@
     doc = """Mesh-import fixture (task 1.4): a texCoord2f[] UV set under a name
     that is NOT the primary one, so it can only be found by scanning types.
 
-    Decision 6 resolves UVs by the primary name first
+    The importer resolves UVs by the primary name first
     (UsdUtilsGetPrimaryUVSetName(), 'st'), then by scanning for a
     texCoord2f[]-typed primvar. Every other fixture in the corpus authors
     'st', so the named path is all any of them exercise. This one authors
