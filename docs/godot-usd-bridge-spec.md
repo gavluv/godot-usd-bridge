@@ -76,7 +76,7 @@ godot-usd-bridge/
 │   ├── usd_stage_loader.{h,cpp}  # Public runtime API (GDScript-callable)
 │   ├── translate/                # Core translation (editor-independent)
 │   │   ├── conventions.{h,cpp}   # metersPerUnit, upAxis, winding
-│   │   ├── xform_import.{h,cpp}  # UsdGeomXformCache → Transform3D
+│   │   ├── stage_import.{h,cpp}  # UsdStage → Node3D tree
 │   │   ├── mesh_import.{h,cpp}   # triangulation, primvar/vertex split
 │   │   └── material_import.{h,cpp}  # v0.2
 │   └── editor/                   # v0.3: scene format importer plugin

@@ -1,5 +1,5 @@
 #include "usd_bridge.h"
-#include "translate/xform_import.h"
+#include "translate/stage_import.h"
 
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>

@@ -70,7 +70,7 @@ set(TRANSLATE_PURE_SOURCES
 # Compiled into the extension ONLY -- never the test exe, so a test that calls
 # into this layer fails to link rather than crashing at runtime. `*_import`.
 set(TRANSLATE_ENGINE_SOURCES
-	src/translate/xform_import.cpp
+	src/translate/stage_import.cpp
 	src/translate/mesh_import.cpp
 )
 
