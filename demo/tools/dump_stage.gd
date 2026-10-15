@@ -51,8 +51,17 @@ func _dump(node: Node, depth: int) -> int:
 		line += " euler_deg=" + _v3(t.basis.get_euler() * 180.0 / PI)
 		if n3.is_set_as_top_level():
 			line += " top_level=true"
+		# The node's own flag. Nothing parents this tree, and outside the scene
+		# tree is_visible_in_tree() ignores ancestors, so it could only repeat
+		# this value.
+		if not n3.visible:
+			line += " visible=false"
 	else:
 		line += " class=" + node.get_class()
+
+	# Always printed, and last before the mesh summary, so a needle that ends
+	# in purpose= also pins the absence of the conditional fields before it.
+	line += " purpose=" + _meta_or(node, "usd_purpose", "<none>")
 
 	if node is MeshInstance3D:
 		line += _mesh_summary((node as MeshInstance3D).mesh)
