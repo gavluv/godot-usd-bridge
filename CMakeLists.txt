@@ -64,6 +64,7 @@ set(TRANSLATE_PURE_SOURCES
 	src/translate/conventions.cpp
 	src/translate/xform_convert.cpp
 	src/translate/mesh_convert.cpp
+	src/translate/imageable.cpp
 )
 
 # ENGINE: depends on generated engine classes (scene-tree construction, etc.).
