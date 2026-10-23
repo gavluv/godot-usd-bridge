@@ -1,0 +1,119 @@
+#usda 1.0
+(
+    doc = """Imageable fixture (task 1.6): guide purpose, which hides geometry
+    but, unlike visibility, does not prune.
+
+    PURPOSE IS NOT PRUNING
+      A prim's purpose is its own authored value if it has one, otherwise that
+      of the nearest Imageable ancestor with an authored value, otherwise
+      "default". A child that authors purpose = "default" under a guide Xform
+      is default, not guide. Node3D.visible does prune, so the importer flags
+      only gprims, the prims that carry geometry, and never the Xforms,
+      SkelRoots or untyped prims that group them.
+
+      Purpose also passes through prims that are not Imageable: Untyped has
+      no purpose of its own, and Grandchild inherits guide through it.
+
+      Guides are hidden. Render and proxy are imported like default.
+
+    Every Mesh is the quad_mesh.usda quad. GuideCube is a Cube with its schema
+    defaults.
+
+    EXPECTED -- to_imageable_data, per prim
+      /Root/GuideGroup                      visible = true    purpose guide
+      /Root/GuideGroup/SilentMesh           visible = false   purpose guide
+      /Root/GuideGroup/DefaultMesh          visible = true    purpose default
+      /Root/GuideGroup/GuideCube            visible = false   purpose guide
+      /Root/GuideGroup/Untyped              visible = true    purpose guide
+      /Root/GuideGroup/Untyped/Grandchild   visible = false   purpose guide
+      /Root/GuideSkelRoot                   visible = true    purpose guide
+      /Root/GuideSkelRoot/Body              visible = true    purpose default
+      /Root/RenderMesh                      visible = true    purpose render
+      /Root/ProxyMesh                       visible = true    purpose proxy
+      no warnings on any prim
+
+    DETECTOR: each wrong rule below fails on one prim.
+      - Hiding every guide prim flags GuideGroup, and Godot then hides
+        DefaultMesh, which USD says is default.
+      - Hiding only Meshes leaves GuideCube visible.
+      - Hiding every boundable flags GuideSkelRoot, which is boundable but not
+        a gprim, and Godot then hides Body.
+      - Computing purpose only for Imageable prims stops inheritance at
+        Untyped, so Grandchild comes out default and visible.
+      - Hiding render or proxy flags RenderMesh or ProxyMesh."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Xform "GuideGroup"
+    {
+        uniform token purpose = "guide"
+
+        def Mesh "SilentMesh"
+        {
+            float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+            int[] faceVertexCounts = [4]
+            int[] faceVertexIndices = [0, 1, 2, 3]
+            point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+        }
+
+        def Mesh "DefaultMesh"
+        {
+            float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+            int[] faceVertexCounts = [4]
+            int[] faceVertexIndices = [0, 1, 2, 3]
+            point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+            uniform token purpose = "default"
+        }
+
+        def Cube "GuideCube"
+        {
+        }
+
+        def "Untyped"
+        {
+            def Mesh "Grandchild"
+            {
+                float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+                int[] faceVertexCounts = [4]
+                int[] faceVertexIndices = [0, 1, 2, 3]
+                point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+            }
+        }
+    }
+
+    def SkelRoot "GuideSkelRoot"
+    {
+        uniform token purpose = "guide"
+
+        def Mesh "Body"
+        {
+            float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+            int[] faceVertexCounts = [4]
+            int[] faceVertexIndices = [0, 1, 2, 3]
+            point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+            uniform token purpose = "default"
+        }
+    }
+
+    def Mesh "RenderMesh"
+    {
+        float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+        uniform token purpose = "render"
+    }
+
+    def Mesh "ProxyMesh"
+    {
+        float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+        uniform token purpose = "proxy"
+    }
+}

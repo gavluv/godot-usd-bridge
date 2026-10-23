@@ -1,0 +1,60 @@
+#usda 1.0
+(
+    doc = """Imageable fixture (task 1.6): an invisible Xform whose child
+    authors visibility = "inherited", which USD still treats as invisible.
+
+    USD visibility prunes. A prim is invisible if it or any Imageable ancestor
+    authors "invisible", and a descendant cannot opt back in: "inherited" is
+    the schema default and means "whatever my parent is". So
+    /Root/Hidden/ChildInherited is invisible in USD although its own attribute
+    says "inherited".
+
+    Godot's Node3D.visible prunes the same way, so the importer sets the flag
+    on the prim that authors "invisible" and nowhere else, and Godot hides the
+    rest.
+
+    Every Mesh is the quad_mesh.usda quad.
+
+    EXPECTED -- to_imageable_data, per prim
+      /Root/Hidden                  visible = false   purpose default
+      /Root/Hidden/ChildInherited   visible = true    purpose default
+      /Root/Sibling                 visible = true    purpose default
+      no warnings on any prim
+
+      `visible` is the prim's own flag, not its effective visibility, so
+      ChildInherited's true is correct.
+
+    DETECTOR: an importer that also flags the descendants of an invisible prim
+    hides the same nodes and looks identical in the viewport. The difference
+    shows when Hidden is made visible again in the editor: the subtree stays
+    hidden, because each child now carries its own flag. ChildInherited's
+    visible = true is the whole assertion."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Xform "Hidden"
+    {
+        token visibility = "invisible"
+
+        def Mesh "ChildInherited"
+        {
+            float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+            int[] faceVertexCounts = [4]
+            int[] faceVertexIndices = [0, 1, 2, 3]
+            point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+            token visibility = "inherited"
+        }
+    }
+
+    def Mesh "Sibling"
+    {
+        float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+    }
+}

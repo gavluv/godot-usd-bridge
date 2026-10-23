@@ -1,0 +1,75 @@
+#usda 1.0
+(
+    doc = """Imageable fixture (task 1.6): Xforms that are both guide and
+    invisible. The guide rule may only ever clear the visible flag.
+
+    An Xform is never hidden for being guide, because its non-guide
+    descendants have to stay visible (see guide_purpose.usda). That rule is
+    about purpose alone. An Xform that authors visibility = "invisible" is
+    still hidden, whatever its purpose, and so is everything under it.
+
+    There are two ways to be both. GuideInvisible authors purpose = "guide"
+    and visibility = "invisible" itself. InvisibleXform authors only
+    "invisible" and inherits guide from GuideGroup. The second is the common
+    one, since every Xform inside a guide subtree computes guide.
+
+    Every Mesh is the quad_mesh.usda quad.
+
+    EXPECTED -- to_imageable_data, per prim
+      /Root/GuideInvisible                          visible = false   purpose guide
+      /Root/GuideInvisible/DefaultMesh              visible = true    purpose default
+      /Root/GuideGroup                              visible = true    purpose guide
+      /Root/GuideGroup/InvisibleXform               visible = false   purpose guide
+      /Root/GuideGroup/InvisibleXform/DefaultMesh   visible = true    purpose default
+      no warnings on any prim
+
+      Both DefaultMesh prims are invisible in USD through their parents. Their
+      own flags are true.
+
+    DETECTOR: a guide rule that assigns the flag for every prim with a hidden
+    purpose (false for gprims, true for everything else), instead of only
+    clearing it for gprims, overwrites the authored "invisible" on both Xforms
+    with true. Both DefaultMesh prims then show, although USD hides them.
+    guide_purpose.usda passes with that bug, because none of its prims is both
+    guide and invisible."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Xform "GuideInvisible"
+    {
+        uniform token purpose = "guide"
+        token visibility = "invisible"
+
+        def Mesh "DefaultMesh"
+        {
+            float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+            int[] faceVertexCounts = [4]
+            int[] faceVertexIndices = [0, 1, 2, 3]
+            point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+            uniform token purpose = "default"
+        }
+    }
+
+    def Xform "GuideGroup"
+    {
+        uniform token purpose = "guide"
+
+        def Xform "InvisibleXform"
+        {
+            token visibility = "invisible"
+
+            def Mesh "DefaultMesh"
+            {
+                float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+                int[] faceVertexCounts = [4]
+                int[] faceVertexIndices = [0, 1, 2, 3]
+                point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+                uniform token purpose = "default"
+            }
+        }
+    }
+}

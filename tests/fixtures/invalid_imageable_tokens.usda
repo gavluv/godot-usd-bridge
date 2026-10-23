@@ -1,0 +1,133 @@
+#usda 1.0
+(
+    doc = """Imageable fixture (task 1.6): visibility and purpose tokens that
+    USD does not define, which must fall back and warn, next to unusual but
+    valid authorings, which must stay silent.
+
+    The schema allows visibility = "inherited" or "invisible", and purpose =
+    "default", "render", "proxy" or "guide". USD enforces neither list: as of
+    OpenUSD v26.05 any token parses and Get() returns it as written, and token
+    comparison is case-sensitive.
+
+    An unrecognized visibility is treated as "inherited", so the prim stays
+    visible. An unrecognized purpose is never a hidden purpose, so the prim
+    stays visible too, and the computed purpose keeps the token as written.
+    Both warn. A purpose warning comes only from the prim that authors the
+    token: InheritsBogus inherits "Guide" without warning.
+
+    Every Mesh is the quad_mesh.usda quad.
+
+    EXPECTED -- to_imageable_data, per prim. Every prim is visible; only the
+    warnings and computed purposes differ.
+      visibility warning
+        /Root/WrongCaseVisibility          "Invisible", wrong case
+        /Root/VisibleToken                 "visible", a value of the
+                                           VisibilityAPI purpose-visibility
+                                           attributes, not of this one
+      purpose warning
+        /Root/BogusPurpose                 purpose "Guide"
+        /Root/EmptyPurpose                 purpose ""
+      no warning
+        /Root/BogusPurpose/InheritsBogus   purpose "Guide", inherited
+        /Root/BlockedVisibility            visibility = None
+        /Root/DeclaredVisibility           visibility declared, no value
+        /Root/TimeSampledVisibility        "invisible" in timeSamples only
+      Computed purpose is "default" on every prim not listed with another.
+
+    THE SILENT CASES
+      A block makes Get() fail at default time, the same OpenUSD behavior
+      described in blocked_orientation_quad.usda, and a failed read is treated
+      as unauthored. A bare declaration resolves to the schema default,
+      "inherited". TimeSampledVisibility reads that same default at default
+      time, where the importer reads everything; animated visibility is not
+      imported.
+
+    DETECTOR:
+      - Accepting any token other than "invisible" silently: no warning on
+        WrongCaseVisibility or VisibleToken.
+      - Comparing against "visible" where "inherited" is meant: a visibility
+        warning on every prim whose visibility reads as "inherited", which is
+        nearly all of them, and none on VisibleToken.
+      - Checking the computed purpose rather than the authored one: an extra
+        warning on InheritsBogus.
+      - Hiding prims whose purpose is not in an allowed set, instead of only
+        those in a hidden set: InheritsBogus and EmptyPurpose come out
+        hidden. BogusPurpose is an Xform, which purpose never hides.
+      - Ignoring Get()'s return value: an empty token on BlockedVisibility,
+        and a warning."""
+    defaultPrim = "Root"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "Root"
+{
+    def Mesh "WrongCaseVisibility"
+    {
+        float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+        token visibility = "Invisible"
+    }
+
+    def Mesh "VisibleToken"
+    {
+        float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+        token visibility = "visible"
+    }
+
+    def Xform "BogusPurpose"
+    {
+        uniform token purpose = "Guide"
+
+        def Mesh "InheritsBogus"
+        {
+            float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+            int[] faceVertexCounts = [4]
+            int[] faceVertexIndices = [0, 1, 2, 3]
+            point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+        }
+    }
+
+    def Mesh "EmptyPurpose"
+    {
+        float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+        uniform token purpose = ""
+    }
+
+    def Mesh "BlockedVisibility"
+    {
+        float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+        token visibility = None
+    }
+
+    def Mesh "DeclaredVisibility"
+    {
+        float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+        token visibility
+    }
+
+    def Mesh "TimeSampledVisibility"
+    {
+        float3[] extent = [(-1, 0, -1), (1, 0, 1)]
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [(-1, 0, -1), (-1, 0, 1), (1, 0, 1), (1, 0, -1)]
+        token visibility.timeSamples = {
+            1: "invisible",
+        }
+    }
+}
