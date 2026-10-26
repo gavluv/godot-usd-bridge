@@ -161,6 +161,7 @@ if(GODOT_USD_BUILD_TESTS)
 		tests/test_conventions.cpp
 		tests/test_xform_convert.cpp
 		tests/test_mesh_convert.cpp
+		tests/test_imageable.cpp
 		${TRANSLATE_PURE_SOURCES}
 	)
 

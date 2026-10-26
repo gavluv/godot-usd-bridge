@@ -2,6 +2,7 @@
 #include "conventions.h"
 #include "xform_convert.h"
 #include "mesh_import.h"
+#include "imageable.h"
 
 #include <godot_cpp/variant/transform3d.hpp>
 #include <godot_cpp/variant/string.hpp>
@@ -14,6 +15,7 @@
 #include <pxr/usd/usd/prim.h>
 #include <pxr/usd/usdGeom/xformCache.h>
 #include <pxr/usd/usdGeom/mesh.h>
+#include <pxr/usd/usdGeom/imageable.h>
 
 #include <string>
 
@@ -21,8 +23,27 @@ namespace godot_usd::translate {
 
 static const char *prim_path_md_key = "usd_prim_path";
 static const char *prim_type_name_md_key = "usd_type_name";
+static const char *prim_purpose_md_key = "usd_purpose";
+
+static godot::String get_imageable_warn_flags_string(const uint32_t p_warn_flags) {
+	if (p_warn_flags == 0) {
+		return "";
+	}
+
+	auto warn_parts = godot::PackedStringArray();
+
+	if (p_warn_flags & IMAGEABLE_CONVERT_WARN_PURPOSE_INVALID) {
+		warn_parts.append("invalid purpose token");
+	}
+	if (p_warn_flags & IMAGEABLE_CONVERT_WARN_VISIBILITY_INVALID) {
+		warn_parts.append("invalid visibility token");
+	}
+
+	return godot::String("; ").join(warn_parts);
+}
 
 static godot::Node3D *import_prim(const PXR_NS::UsdPrim &p_prim, PXR_NS::UsdGeomXformCache &p_xform_cache,
+		const PXR_NS::UsdGeomImageable::PurposeInfo &p_parent_purpose_info,
 		const godot::Transform3D &p_root_transform) {
 	if (!p_prim.IsValid()) {
 		ERR_PRINT("Invalid prim");
@@ -54,8 +75,21 @@ static godot::Node3D *import_prim(const PXR_NS::UsdPrim &p_prim, PXR_NS::UsdGeom
 	node->set_meta(prim_type_name_md_key, godot::String(p_prim.GetTypeName().GetText()));
 	node->set_meta(prim_path_md_key, godot::String(p_prim.GetPath().GetText()));
 
+	auto imageable_data = to_imageable_data(p_prim, p_parent_purpose_info);
+
+	// Invisible and guide prims are imported with Node3D.visible = false instead of skipped. This keeps the imported
+	// tree the same shape as the prim tree, and matches what USD says purpose and visibility mean: invisible geometry
+	// is still available for inspection, and guides can be shown on request.
+	node->set_visible(imageable_data.visible);
+	node->set_meta(prim_purpose_md_key, godot::String(imageable_data.purpose_info.purpose.GetText()));
+
+	if (imageable_data.warn_flags != 0) {
+		WARN_PRINT("USD purpose and visibility conversion warnings: " + godot::String(p_prim.GetPath().GetText()) +
+				   " (" + get_imageable_warn_flags_string(imageable_data.warn_flags) + ")");
+	}
+
 	for (PXR_NS::UsdPrim child_prim : p_prim.GetChildren()) {
-		auto child_node = import_prim(child_prim, p_xform_cache, p_root_transform);
+		auto child_node = import_prim(child_prim, p_xform_cache, imageable_data.purpose_info, p_root_transform);
 		if (child_node != nullptr) {
 			node->add_child(child_node);
 		}
@@ -74,8 +108,9 @@ godot::Node3D *import_stage(const PXR_NS::UsdStageWeakPtr &p_stage) {
 
 	godot::Transform3D root_tf = root_transform(p_stage);
 	auto xform_cache = PXR_NS::UsdGeomXformCache();
+	auto purpose_info = PXR_NS::UsdGeomImageable::PurposeInfo();
 
-	auto root_node = import_prim(root_prim, xform_cache, root_tf);
+	auto root_node = import_prim(root_prim, xform_cache, purpose_info, root_tf);
 
 	if (root_node == nullptr) {
 		return nullptr;

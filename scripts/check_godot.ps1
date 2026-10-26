@@ -64,6 +64,11 @@ $LogDir = Join-Path $RepoRoot "build/check-logs"
 # dump. They are chosen to fail when a specific bug class regresses, not merely
 # to describe current behaviour.
 # ---------------------------------------------------------------------------
+# Transform fields of a node whose local transform is identity, as
+# dump_stage.gd prints them. The task 1.6 needles run through these fields to
+# reach the visible= and purpose= fields that follow.
+$IdentityXform = "origin=(0.0000, 0.0000, 0.0000) scale=(1.0000, 1.0000, 1.0000) euler_deg=(-0.0000, 0.0000, 0.0000)"
+
 $FixtureExpectations = [ordered]@{
 	"nested_xforms"              = @(
 		# Synthetic stage-root node above the prim nodes.
@@ -353,6 +358,81 @@ $FixtureExpectations = [ordered]@{
 		"mesh='InvalidOrientationQuad' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 2, 1, 0, 3, 2]",
 		"aabb_pos=(-1.0000, 0.0000, -1.0000) aabb_size=(2.0000, 0.0000, 2.0000)",
 		"nodes: 3"
+	)
+	# ---- purpose and visibility (task 1.6) ------------------------------
+	# The doctests check what to_imageable_data returns for every prim in
+	# these files. What only these needles see is the wiring in import_prim:
+	# the flag and the usd_purpose meta reaching the node, purpose_info
+	# threading through the recursion, no node being dropped, and the warning
+	# text and log level. So they cover the prims where wiring can go wrong,
+	# not every row the doctests already assert.
+	#
+	# dump_stage.gd prints ' visible=false' only when the node's own flag is
+	# off, then ' purpose=<token>' on every line. A needle that runs from the
+	# node name through 'purpose=' therefore pins the flag both ways: it needs
+	# 'visible=false' for a hidden node and fails if it appears on a visible
+	# one. The flag is the node's own, not its effective visibility, since
+	# nothing parents the dumped tree.
+	#
+	# A warning that must be ABSENT cannot be pinned by a needle. The doctests
+	# cover those: InheritsBogus, the silent cases in invalid_imageable_tokens,
+	# and every prim in the other four files.
+	"invisible_subtree"          = @(
+		# Hidden authors "invisible" and carries the flag. ChildInherited must
+		# not: Godot already hides it through Hidden, and a flag of its own
+		# would keep it hidden after Hidden is shown again in the editor.
+		"- Hidden  path=/Root/Hidden type=Xform $IdentityXform visible=false purpose=default",
+		"- ChildInherited  path=/Root/Hidden/ChildInherited type=Mesh $IdentityXform purpose=default",
+		# Hidden, not dropped: an importer that skipped invisible subtrees
+		# would give 3.
+		"nodes: 5"
+	)
+	"guide_purpose"              = @(
+		# A guide Xform is never flagged, but its meta says guide. Its children
+		# compute guide only if import_prim passes each prim's own purpose_info
+		# down, not the one it received, so SilentMesh is where a threading
+		# mistake shows.
+		"- GuideGroup  path=/Root/GuideGroup type=Xform $IdentityXform purpose=guide",
+		"- SilentMesh  path=/Root/GuideGroup/SilentMesh type=Mesh $IdentityXform visible=false purpose=guide",
+		"- DefaultMesh  path=/Root/GuideGroup/DefaultMesh type=Mesh $IdentityXform purpose=default",
+		# A Cube imports as a plain Node3D, not a MeshInstance3D, so this
+		# catches the flag being applied only to mesh nodes.
+		"- GuideCube  path=/Root/GuideGroup/GuideCube type=Cube $IdentityXform visible=false purpose=guide",
+		# Purpose threads through a prim that is not Imageable.
+		"- Grandchild  path=/Root/GuideGroup/Untyped/Grandchild type=Mesh $IdentityXform visible=false purpose=guide",
+		"nodes: 12"
+	)
+	"guide_invisible"            = @(
+		# Both Xforms are guide and invisible. Purpose never flags an Xform,
+		# but it must not clear the flag that visibility set either.
+		"- GuideInvisible  path=/Root/GuideInvisible type=Xform $IdentityXform visible=false purpose=guide",
+		"- InvisibleXform  path=/Root/GuideGroup/InvisibleXform type=Xform $IdentityXform visible=false purpose=guide",
+		"nodes: 7"
+	)
+	"untyped_imageable_opinions" = @(
+		# Untyped authors visibility = "invisible" and purpose = "guide", and
+		# USD ignores both because the prim is not Imageable. Its type= field
+		# is empty.
+		"- Untyped  path=/Root/Untyped type= $IdentityXform purpose=default",
+		"- Child  path=/Root/Untyped/Child type=Mesh $IdentityXform purpose=default",
+		"nodes: 4"
+	)
+	"invalid_imageable_tokens"   = @(
+		# The only test of the message text and log level, which live in
+		# stage_import.cpp outside the doctest exe. Each needle runs from the
+		# WARNING: prefix through the closing ')', so an extra warning on the
+		# same prim fails it too. There is one line per prim that authors a bad
+		# token, and none for InheritsBogus, which only inherits one.
+		"WARNING: USD purpose and visibility conversion warnings: /Root/WrongCaseVisibility (invalid visibility token)",
+		"WARNING: USD purpose and visibility conversion warnings: /Root/VisibleToken (invalid visibility token)",
+		"WARNING: USD purpose and visibility conversion warnings: /Root/BogusPurpose (invalid purpose token)",
+		"WARNING: USD purpose and visibility conversion warnings: /Root/EmptyPurpose (invalid purpose token)",
+		# An unrecognized purpose reaches the meta as written, inherited tokens
+		# included, and hides nothing. The empty token is pinned by the mesh
+		# summary that follows it.
+		"- InheritsBogus  path=/Root/BogusPurpose/InheritsBogus type=Mesh $IdentityXform purpose=Guide",
+		"- EmptyPurpose  path=/Root/EmptyPurpose type=Mesh $IdentityXform purpose=  mesh='EmptyPurpose'",
+		"nodes: 10"
 	)
 }
 
