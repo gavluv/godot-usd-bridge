@@ -72,21 +72,30 @@ Revisit Docker (Windows containers + VS Build Tools) only if local/CI drift beco
 ```
 godot-usd-bridge/
 ├── src/
-│   ├── register_types.cpp        # GDExtension entry; PlugRegistry init
-│   ├── usd_stage_loader.{h,cpp}  # Public runtime API (GDScript-callable)
+│   ├── register_types.{h,cpp}    # GDExtension entry; PlugRegistry init
+│   ├── usd_stage_loader.{h,cpp}  # v0.1: public runtime API (GDScript-callable)
+│   ├── usd_bridge.{h,cpp}        # interim dev harness, until UsdStageLoader lands
+│   ├── platform_fixup.h          # force-included; #undefs windows.h macros that collide with godot-cpp
 │   ├── translate/                # Core translation (editor-independent)
-│   │   ├── conventions.{h,cpp}   # metersPerUnit, upAxis, winding
+│   │   ├── conventions.{h,cpp}   # metersPerUnit, upAxis → root transform
+│   │   ├── xform_convert.{h,cpp} # GfMatrix4d → Transform3D
+│   │   ├── mesh_convert.{h,cpp}  # triangulation, primvars, vertex split, winding → MeshData
+│   │   ├── imageable.{h,cpp}     # per-prim purpose and visibility
 │   │   ├── stage_import.{h,cpp}  # UsdStage → Node3D tree
-│   │   ├── mesh_import.{h,cpp}   # triangulation, primvar/vertex split
+│   │   ├── mesh_import.{h,cpp}   # MeshData → ArrayMesh, MeshInstance3D
 │   │   └── material_import.{h,cpp}  # v0.2
 │   └── editor/                   # v0.3: scene format importer plugin
-├── scripts/build_usd.ps1
+├── tests/                        # doctest exe for the pure translate/ files; fixtures/ (.usda)
+├── extern/                       # submodules: godot-cpp, doctest
+├── scripts/                      # build_usd.ps1, check_godot.ps1, format.ps1, gen_compile_commands.ps1
 ├── thirdparty/usd-install/       # gitignored build output
 ├── addons/godot-usd-bridge/      # distributable: .gdextension, dlls, usd/ resources
-├── demo/                         # Godot test project + GUT tests + fixtures
+├── demo/                         # Godot test project: smoke scene, tools/dump_stage.gd
 ├── docs/adr/                     # ADR-001 (OpenUSD over tinyusdz), ADR-002 (no Docker), ADR-003 (oneTBB over classic Intel TBB), ADR-004 (godot-cpp v10/master + api_version), ADR-005 (doctest), ADR-006 (primvar vertex splitting), ADR-007 (mesh convention conversion in the pure layer), ...
 └── CMakeLists.txt + CMakePresets.json
 ```
+
+In `translate/`, files that touch only USD and godot-cpp's math types build into both the extension and the doctest exe: `conventions`, `imageable` and the `*_convert` files. The `*_import` files build engine nodes and resources and go into the extension only. A pure file with no `*_import` counterpart takes no suffix.
 
 **Two API layers, built in order:**
 
