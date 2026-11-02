@@ -18,7 +18,7 @@
       Unlike an unknown interpolation (bogus_interp.usda), there is a safe
       value to fall back on: the schema default, rightHanded. The mesh is
       imported with it, and the warning is what tells the author the token was
-      not honoured. Here the quad comes out facing +Y although the author
+      not honored. Here the quad comes out facing +Y although the author
       plainly meant leftHanded. Importing something visible and saying so was
       preferred over dropping the mesh.
 

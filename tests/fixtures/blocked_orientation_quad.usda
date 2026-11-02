@@ -36,7 +36,7 @@
       pxr/usd/usd/attribute.h documents that Get() succeeds on a blocked
       attribute whose schema provides a default. At default time, which is
       where the importer reads everything, it does not. OpenUSD issue #4155
-      hits the same behaviour. So when Get() fails the importer has to supply
+      hits the same behavior. So when Get() fails the importer has to supply
       the default itself.
 
     EXPECTED

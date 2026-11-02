@@ -4,7 +4,7 @@
     both a primvar and the normals attribute, which resolve to DIFFERENT
     defaults.
 
-    This fixture guards USD's behaviour, not ours. Nothing in the importer
+    This fixture guards USD's behavior, not ours. Nothing in the importer
     decides these values -- they come from the schema, so a pin bump could
     change them silently and every unit test would still pass. This file is the
     only thing standing there.
@@ -31,7 +31,7 @@
       st has exactly ONE value and normals exactly FOUR (= point count),
       because those are the lengths the two defaults imply. Sizing them any
       other way would make this fixture test the over/undersized channel paths
-      at the same time, and a failure would not say which behaviour moved.
+      at the same time, and a failure would not say which behavior moved.
 
     Expected -- assert USD directly, not the downstream effect:
       - UsdGeomPrimvarsAPI(prim).GetPrimvar("st").GetInterpolation()

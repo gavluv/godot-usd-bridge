@@ -6,7 +6,7 @@
     "!resetXformStack!" as the first entry of xformOpOrder means the prim
     ignores ALL ancestor transforms (pxr/usd/usdGeom/xformable.h, the class
     doc's "Resetting the Transform Stack" and SetResetXformStack()). The Godot
-    analogue is Node3D::set_as_top_level(true).
+    analog is Node3D::set_as_top_level(true).
 
     Metrics are centimeters ON PURPOSE: metersPerUnit = 0.01 gives a non-identity
     root correction (uniform scale 0.01), which is what makes this fixture a

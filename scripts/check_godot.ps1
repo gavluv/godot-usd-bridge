@@ -15,7 +15,7 @@
                 scans, and would not load the extension at all)
       smoke     runs the demo scene and checks its output
       fixtures  runs tools/dump_stage.gd over tests/fixtures/*.usda and matches
-                lines that encode specific importer behaviour; see each
+                lines that encode specific importer behavior; see each
                 fixture's own doc metadata for what it detects
       negative  renames the addon's usd/ resource tree away and requires the
                 extension to fail loudly rather than silently or by crashing
@@ -62,7 +62,7 @@ $LogDir = Join-Path $RepoRoot "build/check-logs"
 # ---------------------------------------------------------------------------
 # Expected output. Each entry is a substring that must appear in that fixture's
 # dump. They are chosen to fail when a specific bug class regresses, not merely
-# to describe current behaviour.
+# to describe current behavior.
 # ---------------------------------------------------------------------------
 # Transform fields of a node whose local transform is identity, as
 # dump_stage.gd prints them. The task 1.6 needles run through these fields to
@@ -134,7 +134,7 @@ $FixtureExpectations = [ordered]@{
 	"malformed_mesh"             = @(
 		# Out-of-range point index: conversion fails loudly, but the node is
 		# still created so the prim keeps its place in the hierarchy. The
-		# parenthesised reason pins WHICH check rejected it -- without it this
+		# parenthesized reason pins WHICH check rejected it -- without it this
 		# needle also matches truncated_face_indices' failure.
 		"ERROR: Failed to convert USD mesh to Godot mesh: /Root/BadIndices (Point index out of range)",
 		"- BadIndices  path=/Root/BadIndices type=Mesh",
@@ -187,7 +187,7 @@ $FixtureExpectations = [ordered]@{
 	)
 	"no_normals_mesh"            = @(
 		# Authors no normals, which is ordinary USD. The mesh-level warning
-		# exists only to give the needle a parenthesised list to pin: a
+		# exists only to give the needle a parenthesized list to pin: a
 		# [NORMALS] or [UVS] segment can only appear inside it. This is the
 		# regression test for warning on every mesh that leaves normals to the
 		# renderer.
@@ -270,7 +270,7 @@ $FixtureExpectations = [ordered]@{
 	"partial_orphan_mesh"        = @(
 		# One real face and one degenerate one, so the mesh converts while
 		# still carrying orphan points. The AABB is the detector: unclaimed
-		# slots are zero-initialised and the quad sits at x,z in [1, 3], so an
+		# slots are zero-initialized and the quad sits at x,z in [1, 3], so an
 		# uncompacted surface reaches (0, 0, 0) and the bound becomes
 		# (0, 0, 0) to (3, 0, 3). Godot bounds the whole ARRAY_VERTEX, so this
 		# is the culling bound too.

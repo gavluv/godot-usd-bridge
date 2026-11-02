@@ -1,7 +1,7 @@
 #usda 1.0
 (
     doc = """Mesh-import fixture (task 1.4): an authored normal of zero length,
-    which cannot be normalised and must be substituted rather than propagated.
+    which cannot be normalized and must be substituted rather than propagated.
 
     TOPOLOGY -- the quad_mesh.usda quad
       points            4 entries
@@ -12,7 +12,7 @@
       normals is vertex-interpolated with 4 values, so the count is correct and
       validate_channel passes. Point 2's normal is (0, 0, 0).
 
-      A zero vector has no direction, so normalising it divides by zero. Godot's
+      A zero vector has no direction, so normalizing it divides by zero. Godot's
       Vector3::normalized() returns the zero vector rather than a NaN, so the
       value would flow all the way into ARRAY_NORMAL and reach the shader,
       where it produces a black or undefined shaded fragment on every triangle
@@ -32,7 +32,7 @@
     would make the vertex count depend on whether splitting has landed, and this
     fixture is meant to assert the same numbers before and after that work.
 
-    DETECTOR: an importer that normalises unconditionally emits a zero normal
+    DETECTOR: an importer that normalizes unconditionally emits a zero normal
     and says nothing. Nothing in the node dump moves -- positions, indices and
     the AABB are all unaffected by a normal's value -- so until normals reach
     the mesh dump the warning is the only observable difference.

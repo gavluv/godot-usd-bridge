@@ -27,7 +27,7 @@
       - AABB spans (-1, 0, -1) to (1, 0, 1)
       - warns [UVS] invalid interpolation mode, and nothing else
 
-    DETECTOR: an importer that treats an unrecognised token as a default --
+    DETECTOR: an importer that treats an unrecognized token as a default --
     "constant" and "vertex" are both tempting -- converts without complaint and
     maps UVs wrongly. The warning is the only signal, since the surface itself
     is identical either way.
