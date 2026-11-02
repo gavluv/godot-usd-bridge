@@ -16,9 +16,9 @@
 
     THE TWO DEFAULTS
       primvars:st  -> `constant`, per UsdGeomPrimvar::GetInterpolation()
-                      (usdGeom/primvar.h:278-279: "constant if unauthored")
+                      (pxr/usd/usdGeom/primvar.h: "constant if unauthored")
       normals      -> `vertex`, per UsdGeomPointBased::GetNormalsInterpolation()
-                      (usdGeom/pointBased.h:239-241: "The fallback
+                      (pxr/usd/usdGeom/pointBased.h: "The fallback
                       interpolation, if left unspecified, is
                       UsdGeomTokens->vertex")
 
@@ -52,8 +52,8 @@
 
     CONTRAST with normals_precedence.usda, which authors BOTH `normals` and
     `primvars:normals` to pin a different rule -- that the primvar wins
-    (pointBased.h:203-204). This file authors only `normals`, so precedence
-    never comes into it."""
+    (GetNormalsAttr() doc, pxr/usd/usdGeom/pointBased.h). This file authors
+    only `normals`, so precedence never comes into it."""
     defaultPrim = "Root"
     metersPerUnit = 1
     upAxis = "Y"

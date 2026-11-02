@@ -4,8 +4,8 @@
     predicate excludes.
 
     UsdPrimDefaultPredicate = active AND defined AND loaded AND non-abstract
-    (prim.h:1420-1424). UsdPrim::GetChildren() applies it; GetAllChildren()
-    does NOT (prim.h:1430-1431). UsdStage::Traverse() applies it too, so an
+    (UsdPrim::GetChildren() doc, pxr/usd/usd/prim.h). GetChildren() applies
+    it; GetAllChildren() does NOT. UsdStage::Traverse() applies it too, so an
     importer that uses GetAllChildren() disagrees with its own prim-tree print
     on this very file.
 

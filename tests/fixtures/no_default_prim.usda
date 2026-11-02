@@ -8,8 +8,9 @@
     holds when there is genuinely no defaultPrim to fall back from, AND that
     multiple top-level prims all survive the import. (defaultPrim is a
     *referencing* hint -- "which prim does a reference to this layer target?"
-    (layer.h:831-833) -- not a declaration that the rest of the stage is
-    unimportant, so it must not decide what gets imported.)
+    (SdfLayer::GetDefaultPrim(), pxr/usd/sdf/layer.h) -- not a declaration
+    that the rest of the stage is unimportant, so it must not decide what gets
+    imported.)
 
     The pseudo-root is not a real prim: its path is "/", its name and typeName
     are empty, and it has no xformOps.
