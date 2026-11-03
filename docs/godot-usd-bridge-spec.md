@@ -1,6 +1,6 @@
 # Godot USD Bridge — Spec & Task Breakdown (v2)
 
-**Status:** Active · **Updated:** June 2026
+**Status:** Active · **Updated:** November 2026
 
 A C++ GDExtension adding native OpenUSD import to Godot 4.x. Windows is the primary development and target platform. Runtime loader first, editor integration second. Goal: a production-quality, maintained native USD importer for the Godot community — real OpenUSD, shipped with prebuilt binaries and CI.
 
@@ -198,6 +198,6 @@ Sizing: **S** ≤ half day · **M** 1–2 days · **L** 3+ days. Order within a 
 
 ## 8. Open Questions
 
-- **OQ-1 — RESOLVED (June 2026):** Pin Godot **4.6** (latest stable). godot-cpp at the 4.6 tag, `compatibility_minimum = 4.6`. Rationale: the pin sets the compatibility *floor*, not ceiling; 4.6 is three patch releases settled; the task 3.1 spike wants the newest GDExtension API surface. Lower the floor later only if real users ask.
+- **OQ-1 — RESOLVED (June 2026):** Pin Godot **4.6** (latest stable). godot-cpp at the 4.6 tag, `compatibility_minimum = 4.6`. Rationale: the pin sets the compatibility *floor*, not ceiling; 4.6 is three patch releases settled; the task 3.1 spike wants the newest GDExtension API surface. Lower the floor later only if real users ask. *(The godot-cpp half did not survive setup: there is no 4.6 branch or tag, so the submodule tracks a v10/`master` commit with `api_version = 4.6`. See §3 and ADR-004.)*
 - **OQ-2:** `.usdz` in v0.2 stretch or punt to backlog?
 - **OQ-3 — RESOLVED (July 2026):** Add **doctest**, from the v0.1 kickoff (ADR-005). Deciding factor: task 1.1's conventions module was shaped as pure math — `(metersPerUnit, upAxis) → Transform3D` — so its tests need no stage, editor, or engine (godot-cpp's math types are engine-independent). GUT + goldens remains the in-engine, end-to-end layer. Vendored as a pinned submodule at `extern/doctest`, per the godot-cpp pattern.
