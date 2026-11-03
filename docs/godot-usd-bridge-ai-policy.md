@@ -34,12 +34,14 @@ Every artifact — code or prose — is assigned a tier *before work starts on i
 
 | Tier 1 | Tier 2 | Tier 3 |
 |---|---|---|
-| All of `src/translate/`: conventions math (1.1), triangulation (1.3), **primvar engine / vertex splitting (1.4)**, winding (1.5) | godot-cpp class registration boilerplate, `register_types.cpp` | `scripts/build_usd.ps1` (0.4) |
-| `PlugRegistry` init & resource path resolution (0.5) | `ArrayMesh` assembly plumbing (1.7) | CI workflow YAML (0.7) |
+| All of `src/translate/`: conventions math (1.1), triangulation (1.3), **primvar engine / vertex splitting (1.4)**, winding (1.5), purpose & visibility (1.6), `ArrayMesh` assembly (1.7) | godot-cpp class registration boilerplate, `register_types.cpp` | `scripts/build_usd.ps1` (0.4) |
+| `PlugRegistry` init & resource path resolution (0.5) | | CI workflow YAML (0.7) |
 | Test fixture *selection and golden values* (1.8) — choosing what to test is understanding | CMake presets (0.2) — AI drafts, but the CRT/exceptions/RTTI flags are a claimed skill: full comprehension required | Repo scaffold, .gitignore, README *formatting* (0.1) |
 | Debugging of any Tier 1 code | GUT test scaffolding/boilerplate (1.8), error-macro wiring (1.9) | `.usda` fixture file authoring (to my spec) |
 
 These rows name *components*, but the `AI-Assist` trailer is per *commit* (AQ-2), so where a row is coarse the commit's actual content governs. "README formatting" is Tier-3, but **substantive README prose is Tier-2** — authored content I own, the same as the spec. A commit that spans tiers takes its **highest-touch tier**, or splits into provenance-homogeneous commits for literal honesty (the third-party licenses are split into their own `none` commit).
+
+`ArrayMesh` assembly (1.7) was listed as Tier 2 until the task 1.7 kickoff. It moved to Tier 1 because the code, `godot_mesh()`, lives in `src/translate/mesh_import.cpp`, and everything in that directory is hand-written (AQ-1).
 
 ### Provisional assignments (v0.2–v0.3, confirm at milestone kickoff)
 
