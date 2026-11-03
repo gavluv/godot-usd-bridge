@@ -16,6 +16,21 @@
 - Spec: docs/godot-usd-bridge-spec.md (pinned versions, milestones, ADRs)
 - Build: CMake presets only; never hand-invoke with ad-hoc flags
   (CRT /MD, exceptions ON, RTTI ON are load-bearing).
+- Verify: run all four, the same commands CI runs, before calling a change
+  done. `ctest` covers only the pure `src/translate/` files; only
+  `check_godot.ps1` sees what the importer produces in Godot, such as log
+  messages and imported node trees. Details in docs/building.md, "Testing".
+  ```
+  cmake --build --preset windows-debug
+  ctest --preset windows-debug
+  pwsh scripts/format.ps1 -Check
+  pwsh scripts/check_godot.ps1
+  ```
+- Commits: Conventional Commits, each with an
+  `AI-Assist: tier-1 | tier-2 | tier-3 | none` trailer
+  (docs/godot-usd-bridge-ai-policy.md). The maintainer writes commit
+  messages. A commit that keeps a higher tier while carrying AI-drafted parts
+  names those parts in its body.
 
 ## windows.h macro collisions
 USD headers pull in `windows.h`, whose macros collide with godot-cpp
