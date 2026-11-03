@@ -3,9 +3,9 @@
 > [!WARNING]
 > **Early development.** This page documents the implemented and verified build
 > pipeline: the toolchain, the OpenUSD build (stage 1), the GDExtension build
-> (stage 2, linked against USD), runtime deployment, and USD plugin registration
-> at load. Beyond registering its plugins, the extension does not *do* anything
-> with USD yet — the prim-tree smoke test and CI are the next milestones.
+> (stage 2, linked against USD), runtime deployment, USD plugin registration at
+> load, and the tests. There are no released binaries yet; the importer's
+> progress is tracked task by task in [the spec, §6](godot-usd-bridge-spec.md#6-task-breakdown).
 
 Windows x86_64 is the primary platform. Pinned versions live in
 [the spec, §3](godot-usd-bridge-spec.md#3-pinned-stack); this page links there
@@ -19,7 +19,7 @@ rather than restating them, so the two can't drift.
 | CMake | ≥ 3.26 | `cmake --version`. An older CMake earlier on `PATH` will shadow a newer one — see Troubleshooting. |
 | Python | 3.x | Used by godot-cpp's binding generator *during* the build. Must be on `PATH` as `python`. |
 | Godot | pinned 4.6.x | Download the **exact** pinned patch (spec §3), not "latest". The standard build suffices; the *mono* build also works (GDScript/GDExtension don't require C#). |
-| Git | any recent | Clone **recursively** for the `godot-cpp` submodule. |
+| Git | any recent | Clone **recursively** for the `godot-cpp` and `doctest` submodules. |
 
 > [!NOTE]
 > You do **not** need a "Developer Command Prompt" — any shell works for both
@@ -79,10 +79,11 @@ gitignored `thirdparty/`:
 | Headers | `include/pxr/` |
 
 > [!NOTE]
-> `bin/` also contains 11 **MaterialX** DLLs — `usdMtlx` is part of core USD
-> even with `--no-imaging`. Whether any of them are load-time dependencies of
-> `usd_ms.dll` (and thus must ship in the addon) is determined in task 0.5;
-> the spec's "`usd_ms.dll` + `tbb12.dll`" packaging list is not yet confirmed.
+> `bin/` also contains 11 **MaterialX** DLLs, because `usdMtlx` is part of core
+> USD even with `--no-imaging`. Two of them, `MaterialXCore.dll` and
+> `MaterialXFormat.dll`, are load-time dependencies of `usd_ms.dll` and ship in
+> the addon; see the deployment table under
+> [USD runtime deployment](#usd-runtime-deployment--plugin-registration-).
 
 The script ends by asserting `usd_ms.dll` exists under the install dir and
 printing the resolved artifact paths.
@@ -90,9 +91,10 @@ printing the resolved artifact paths.
 ## Stage 2 — Build the extension &nbsp;✅
 
 > [!IMPORTANT]
-> Build through the **presets only** — never hand-invoke CMake with ad-hoc flags.
-> The CRT (`/MD`), exceptions, RTTI, and API-version settings are load-bearing and
-> pinned in [`CMakePresets.json`](../CMakePresets.json). See `CLAUDE.md`.
+> Build through the **presets only**, never by hand-invoking CMake with ad-hoc
+> flags. The CRT (`/MD`), exceptions, RTTI, and API-version settings have to
+> match OpenUSD's build, and they are pinned in
+> [`CMakePresets.json`](../CMakePresets.json). See `CLAUDE.md`.
 
 Stage 2 **requires stage 1's install** at `thirdparty/usd-install/` — the presets
 pin `CMAKE_PREFIX_PATH` to it, and `find_package(pxr CONFIG REQUIRED)` fails the
@@ -193,6 +195,42 @@ change when the USD pin bumps.)
 > `--import` alone is **not** sufficient — it does not write `extension_list.cfg`.
 > Use the `--editor … --quit` pass.
 
+`scripts/check_godot.ps1` (see [Testing](#testing-)) runs the warm-up when it is
+needed and checks the demo's output for you.
+
+## Testing &nbsp;✅
+
+Four commands, the same ones CI runs. Run all four before calling a change
+done; each catches things the others cannot.
+
+```powershell
+cmake --build --preset windows-debug
+ctest --preset windows-debug
+pwsh scripts/format.ps1 -Check
+pwsh scripts/check_godot.ps1
+```
+
+- **`ctest`** runs the doctest executable over the pure files in
+  `src/translate/`, the ones built into both the extension and the test
+  executable ([the spec, §4](godot-usd-bridge-spec.md#4-architecture)). It never
+  starts Godot, so it cannot see anything the importer does to nodes, including
+  the warnings it logs.
+- **`format.ps1 -Check`** reports C++ sources that differ from `.clang-format`
+  and exits 1. Without `-Check` it reformats them in place.
+- **`check_godot.ps1`** is the Godot-side check. It runs the editor warm-up when
+  needed, runs the demo scene, imports each fixture that has an entry in the
+  script through `demo/tools/dump_stage.gd` and matches the output against
+  expected lines, and finally renames the demo addon's `usd/` resource tree
+  away and requires the extension to fail loudly. The expected lines live in the script,
+  each with a comment saying what it detects. It needs a built extension and a
+  Godot binary: pass `-Godot <path>`, set `$env:GODOT`, or put `godot` on
+  `PATH`. On Windows use the `*_console.exe` build, because the GUI build
+  detaches from the console and the script cannot capture its output. Logs are
+  written to `build/check-logs/`.
+
+A green `ctest` says nothing about `check_godot.ps1`: a changed warning message
+or a different imported node tree shows up only in the second.
+
 ## Editor / IntelliSense setup &nbsp;*(optional)*
 
 Completions, go-to-definition, and live errors for the C++ sources. Optional —
@@ -270,6 +308,7 @@ Notes:
 - **Confirm `/MD` actually took** — `dumpbin /dependents` (from a VS toolset shell)
   on the built DLL should list `MSVCP140.dll` / `VCRUNTIME140.dll`. Their absence
   means a static CRT slipped in.
-- **No `compile_commands.json`** — expected: the `Visual Studio 17 2022` generator
-  doesn't emit one. Verify compile flags via MSBuild verbosity instead, or add a
-  Ninja preset later (planned for CI, task 0.7).
+- **No `compile_commands.json` in `build/windows-debug/`** — expected: the
+  `Visual Studio 17 2022` generator doesn't emit one. The Ninja-based
+  `windows-tooling` preset does, under `build/tooling/`; see
+  [Editor / IntelliSense setup](#editor--intellisense-setup-optional).
