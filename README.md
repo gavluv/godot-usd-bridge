@@ -47,7 +47,7 @@ Further out: Linux/macOS binaries, AssetLibrary submission, export, `UsdSkel`, H
 The build is two stages — compile OpenUSD once, then build the extension against it:
 
 ```sh
-# 1. Clone with submodules (pulls godot-cpp)
+# 1. Clone with submodules (pulls godot-cpp and doctest)
 git clone --recursive <repo-url>
 cd godot-usd-bridge
 
@@ -77,7 +77,7 @@ Editor import (v0.3): drop a `.usd`, `.usda`, or `.usdc` file into the FileSyste
 
 ## Development workflow
 
-The translation core (`src/translate/`) is written by hand. AI assistance (Claude Code) is used for build scripting, CI, and continuous code review, under repository rules that keep it out of that core; the level of assistance is recorded per commit via an `AI-Assist:` git trailer. The full policy is in [docs/godot-usd-bridge-ai-policy.md](docs/godot-usd-bridge-ai-policy.md).
+The translation core (`src/translate/`) and its unit tests are written by hand, as are commit messages and ADRs. AI assistance (Claude Code) reviews that code, and drafts other parts for review before they are committed: build and CI scripts, test fixtures and the Godot-side expected output, and documentation such as the spec. Repository rules keep it from writing the core itself, and every commit records its level of assistance in an `AI-Assist:` git trailer. The full policy is in [docs/godot-usd-bridge-ai-policy.md](docs/godot-usd-bridge-ai-policy.md).
 
 ## Documentation
 
@@ -92,7 +92,7 @@ Released binaries bundle [OpenUSD](https://github.com/PixarAnimationStudios/Open
 
 ## Acknowledgments
 
-Built on OpenUSD, [godot-cpp](https://github.com/godotengine/godot-cpp), oneTBB, and [GUT](https://github.com/bitwes/Gut). Earlier USD-in-Godot explorations — notably the [`meshula/usd-godot`](https://github.com/meshula/usd-godot) prototype — helped validate feasibility; this project's focus is a released, Windows-first, editor-integrated importer. See the [spec](docs/godot-usd-bridge-spec.md) for full positioning.
+Built on OpenUSD, [godot-cpp](https://github.com/godotengine/godot-cpp), oneTBB, [doctest](https://github.com/doctest/doctest), and [GUT](https://github.com/bitwes/Gut). Earlier USD-in-Godot explorations — notably the [`meshula/usd-godot`](https://github.com/meshula/usd-godot) prototype — helped validate feasibility; this project's focus is a released, Windows-first, editor-integrated importer. See the [spec](docs/godot-usd-bridge-spec.md) for full positioning.
 
 ## Contributing
 

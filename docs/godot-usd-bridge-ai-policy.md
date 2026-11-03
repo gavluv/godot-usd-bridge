@@ -39,7 +39,7 @@ Every artifact — code or prose — is assigned a tier *before work starts on i
 | Test fixture *selection and golden values* (1.8) — choosing what to test is understanding | CMake presets (0.2) — AI drafts, but the CRT/exceptions/RTTI flags are a claimed skill: full comprehension required | Repo scaffold, .gitignore, README *formatting* (0.1) |
 | Debugging of any Tier 1 code | GUT test scaffolding/boilerplate (1.8), error-macro wiring (1.9) | `.usda` fixture file authoring (to my spec) |
 
-These rows name *components*, but the `AI-Assist` trailer is per *commit* (AQ-2), so where a row is coarse the commit's actual content governs. "README formatting" is Tier-3, but **substantive README prose is Tier-2** — authored content I own, the same as the spec. A commit that spans tiers takes its **highest-touch tier**, or splits into provenance-homogeneous commits for literal honesty (the third-party licenses are split into their own `none` commit).
+These rows name *components*, but the `AI-Assist` trailer is per *commit* (AQ-2), so where a row is coarse the commit's actual content governs. "README formatting" is Tier-3, but **substantive README prose is Tier-2** — authored content I own, the same as the spec. A commit that spans tiers takes its **highest-touch tier**, or splits into provenance-homogeneous commits for literal honesty (the third-party licenses are split into their own `none` commit). When a commit keeps the higher tier while carrying AI-drafted parts, such as golden checks drafted alongside hand-written Tier 1 code, its body names those parts in prose. The trailer stays a single value, so trailer-based audits (AQ-2) still read it correctly.
 
 `ArrayMesh` assembly (1.7) was listed as Tier 2 until the task 1.7 kickoff. It moved to Tier 1 because the code, `godot_mesh()`, lives in `src/translate/mesh_import.cpp`, and everything in that directory is hand-written (AQ-1).
 
@@ -66,36 +66,13 @@ These rows name *components*, but the `AI-Assist` trailer is per *commit* (AQ-2)
 
 ## 4. Enforcement via CLAUDE.md
 
-The repo's `CLAUDE.md` encodes this policy as standing instructions so discipline doesn't depend on in-the-moment willpower. Draft (to be created in task 0.1, refined as needed):
-
-```markdown
-# CLAUDE.md — godot-usd-bridge
-
-## Working agreement
-- Code in `src/translate/` is hand-written by the maintainer (Tier 1). In that
-  directory: review, explain, suggest test cases, and critique — but do
-  NOT write or modify implementation code unless explicitly asked to.
-- For everything else: propose a plan and wait for approval before
-  writing code, unless told the task is delegated (Tier 3).
-- When I'm debugging Tier 1 code, act as a sounding board: ask questions,
-  challenge hypotheses, point at relevant docs. Do not write the fix.
-- Always cite which OpenUSD/godot-cpp header or doc an API claim comes
-  from; flag uncertainty instead of guessing.
-- Keep diffs small and single-purpose.
-
-## Project context
-- Spec: docs/godot-usd-bridge-spec.md (pinned versions, milestones, ADRs)
-- Build: CMake presets only; never hand-invoke with ad-hoc flags
-  (CRT /MD, exceptions ON, RTTI ON are load-bearing).
-```
-
-(Configuration specifics evolve; verify against https://docs.claude.com/en/docs/claude-code/overview when setting up.)
+The repo's [`CLAUDE.md`](../CLAUDE.md) encodes this policy as standing instructions, so discipline doesn't depend on in-the-moment willpower. Its working agreement covers the Tier 1 boundary around `src/translate/`, plan-before-code for everything else, sounding-board-only help when debugging Tier 1 code, citing a header for every API claim, and small diffs. It also carries the project context an agent needs in every session: build presets, the verification commands, commit conventions, and the `windows.h` macro fix. It was created in task 0.1 and has been refined since. It is linked here rather than copied, so the two can't drift; `CLAUDE.md` is the authoritative version.
 
 ---
 
 ## 5. Provenance & Disclosure
 
-- **What the repo states plainly:** the translation core (`src/translate/`) is hand-written; Claude Code is used for build scripts, CI, and as a continuous code reviewer, under the repo rules above that keep it out of the learning-target code. AI-assist level is recorded per commit via the `AI-Assist:` trailer (Section 6, AQ-2).
+- **What the repo states plainly:** the translation core (`src/translate/`) and its doctests are hand-written, with Claude Code as reviewer and tutor (Tier 1), as are commit messages and ADRs (Rule 4). Claude Code drafts other artifacts for review: build and CI scripts, test fixtures and golden checks, and documentation prose such as the spec (Tiers 2 and 3). The repo rules above keep it from writing the learning-target code. The `AI-Assist:` trailer on each commit is the authoritative record (Section 6, AQ-2).
 - **README:** a short "Development workflow" note linking to this policy.
 - **Devlog:** one entry (task 3.6 series) dedicated to this workflow — what the tiers were, where the policy was hard to follow in practice, and what AI was genuinely good and bad at on a C++/USD codebase.
 
@@ -103,6 +80,6 @@ The repo's `CLAUDE.md` encodes this policy as standing instructions so disciplin
 
 ## 6. Open Questions
 
-- **AQ-1:** Do Tier 2 components get promoted to Tier 1 if one proves more load-bearing than expected (e.g., the CMake/link engineering becomes central)? Default: yes, retroactively study to Tier 1 depth.
+- **AQ-1:** Do Tier 2 components get promoted to Tier 1 if one proves more central than expected (e.g., the CMake/link engineering)? Default: yes, retroactively study to Tier 1 depth. First applied at the task 1.7 kickoff, to `ArrayMesh` assembly (Section 2).
 - **AQ-2 — RESOLVED (June 2026):** Track per commit via a git trailer: `AI-Assist: tier-1 | tier-2 | tier-3 | none`, using the Section 2 definitions (all four values). No finer granularity (percentages are unmeasurable and gameable); the tier encodes what matters — decision authority and review depth. Adopted from the first maintainer-authored commit (the GitHub-generated license seed is excluded). Trailers are machine-readable (`git log --format` / `git interpret-trailers`), so milestone self-audits (Rule 7) can report real numbers, e.g. share of tier-1 commits touching `src/translate/`.
 - **AQ-3:** Other tools (e.g., editor autocomplete/agents) — same tier rules apply, but inline autocomplete inside `src/translate/` may be too frictionless to police. Decide whether to disable it for that directory.
