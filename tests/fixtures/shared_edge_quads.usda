@@ -56,8 +56,8 @@
          entries unmapped; one bounded by points leaves the last 6.
 
     NOT EXPECTED YET: no ARRAY_NORMAL. This mesh authors no normals, and the
-    importer does not generate missing ones (task 1.7 decides whether it
-    should). Verify structurally, not by eye."""
+    importer does not generate missing ones until task 1.11. Verify
+    structurally, not by eye."""
     defaultPrim = "Root"
     metersPerUnit = 1
     upAxis = "Y"
