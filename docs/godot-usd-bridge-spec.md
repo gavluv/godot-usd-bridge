@@ -128,7 +128,7 @@ Scene format importer registration; import options (variant set selections enume
 **Done when:** v0.3.0 tagged release with prebuilt Windows addon zip and install docs.
 
 ### Backlog (post-v0.3)
-Linux/macOS binaries · AssetLibrary submission · export · UsdSkel · time-sampled xform animation · Hydra preview · MaterialX.
+Linux/macOS binaries · AssetLibrary submission · export · UsdSkel · time-sampled xform animation · Hydra preview · MaterialX · loading stages packed in an exported game (USD reads OS files, so `res://` paths inside a PCK need an Ar resolver over Godot's `FileAccess`).
 
 ---
 
