@@ -13,6 +13,11 @@ extends SceneTree
 ##
 ## Exit codes: 0 = imported, 1 = usage error or import failure.
 
+## Surfaces with more vertices than this print each array's length instead of
+## its contents, so a real asset's dump stays readable. Every fixture is well
+## under it.
+const MAX_PRINTED_VERTS := 64
+
 func _init() -> void:
 	var args := OS.get_cmdline_user_args()
 	if args.size() != 1:
@@ -76,9 +81,16 @@ func _dump(node: Node, depth: int) -> int:
 func _meta_or(node: Node, key: String, fallback: String) -> String:
 	return str(node.get_meta(key)) if node.has_meta(key) else fallback
 
-## Summarizes a MeshInstance3D's mesh structurally. godot_mesh() writes only
-## positions and indices until task 1.7, so meshes shade without normals;
-## counts, index arrays, and AABB are how you verify them.
+## Summarizes a MeshInstance3D's mesh: counts, then for each surface its index
+## array, normals and UVs, then the AABB. A channel the surface lacks prints as
+## <none>, and a surface over MAX_PRINTED_VERTS prints array lengths instead of
+## contents.
+##
+## Normals print at 2 decimals because Godot stores them compressed: on 4.6.3 a
+## normal read back through surface_get_arrays() can differ from the one written
+## by about 1e-4 per component, and an axis-aligned one can come back with a
+## tiny negative component. Positions and UVs come back exactly, so UVs keep 4
+## decimals. In both, a value that rounds to zero prints without a sign.
 func _mesh_summary(mesh: Mesh) -> String:
 	if mesh == null:
 		return "  mesh=<none>"
@@ -88,11 +100,41 @@ func _mesh_summary(mesh: Mesh) -> String:
 		var arrays: Array = mesh.surface_get_arrays(s)
 		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 		var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		var print_arrays := verts.size() <= MAX_PRINTED_VERTS
 		out += " surf%d[verts=%d indices=%d tris=%d]" % [s, verts.size(), idx.size(), idx.size() / 3]
-		out += " idx=" + str(Array(idx))
+		out += " idx=" + (str(Array(idx)) if print_arrays else _length(idx.size()))
+		out += " nrm=" + _channel(arrays[Mesh.ARRAY_NORMAL], print_arrays, _normal)
+		out += " uv=" + _channel(arrays[Mesh.ARRAY_TEX_UV], print_arrays, _uv)
 	var aabb := mesh.get_aabb()
 	out += " aabb_pos=" + _v3(aabb.position) + " aabb_size=" + _v3(aabb.size)
 	return out
+
+## Formats one channel array: <none> when the surface lacks it, its length when
+## the surface is over the cap, and otherwise every value through format.
+func _channel(values, print_arrays: bool, format: Callable) -> String:
+	if values == null:
+		return "<none>"
+	if not print_arrays:
+		return _length(values.size())
+	var parts := PackedStringArray()
+	for v in values:
+		parts.append(format.call(v))
+	return "[" + ", ".join(parts) + "]"
+
+func _length(n: int) -> String:
+	return "<%d values>" % n
+
+func _normal(v: Vector3) -> String:
+	return "(%s, %s, %s)" % [_num(v.x, 2), _num(v.y, 2), _num(v.z, 2)]
+
+func _uv(v: Vector2) -> String:
+	return "(%s, %s)" % [_num(v.x, 4), _num(v.y, 4)]
+
+## Rounds to the given number of decimals, printing a value that rounds to zero
+## without a sign, so -0.000015 and 0.0 both print as zero.
+func _num(x: float, decimals: int) -> String:
+	var s := ("%." + str(decimals) + "f") % x
+	return s.trim_prefix("-") if float(s) == 0.0 else s
 
 ## Rounds to 4 decimals so float noise doesn't churn CI needles.
 func _v3(v: Vector3) -> String:
