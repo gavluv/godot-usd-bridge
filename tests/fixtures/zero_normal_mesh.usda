@@ -14,9 +14,10 @@
 
       A zero vector has no direction, so normalizing it divides by zero. Godot's
       Vector3::normalized() returns the zero vector rather than a NaN, so the
-      value would flow all the way into ARRAY_NORMAL and reach the shader,
-      where it produces a black or undefined shaded fragment on every triangle
-      touching that vertex.
+      value would flow all the way into ARRAY_NORMAL. Godot 4.6.3 stores
+      normals compressed and turns a zero one into (0, 0, -1): a valid unit
+      vector pointing the wrong way, shading every triangle that touches the
+      vertex with nothing to say why.
 
       The importer substitutes (0, 1, 0) -- a legal unit vector, deliberately
       wrong rather than subtly wrong -- and flags the substitution.
@@ -33,9 +34,9 @@
     fixture is meant to assert the same numbers before and after that work.
 
     DETECTOR: an importer that normalizes unconditionally emits a zero normal
-    and says nothing. Nothing in the node dump moves -- positions, indices and
-    the AABB are all unaffected by a normal's value -- so until normals reach
-    the mesh dump the warning is the only observable difference.
+    and says nothing. Positions, indices and the AABB are all unaffected by a
+    normal's value, so two things catch it: the missing warning, and the
+    printed normals, where vertex 2 must read (0, 1, 0).
 
     CONTRAST with the count-mismatch fixtures: this channel is well formed by
     every structural measure. Only an individual VALUE is unusable, which is

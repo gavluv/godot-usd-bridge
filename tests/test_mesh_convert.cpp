@@ -1002,3 +1002,61 @@ TEST_CASE("mesh_convert: blocked_orientation_quad.usda converts with no warnings
 	CHECK(mesh_data.uvs_warn_flags == 0);
 	check_int32_vectors_equal(mesh_data.triangles, std::vector<int32_t>{0, 2, 1, 0, 3, 2});
 }
+
+static void check_channel_size_invariant(const godot_usd::translate::MeshData &mesh_data, size_t expected_vertex_count,
+		bool normals_present, bool uvs_present) {
+	REQUIRE(mesh_data.is_valid());
+	CHECK(mesh_data.positions.size() == expected_vertex_count);
+	if (normals_present) {
+		CHECK(mesh_data.normals.size() == expected_vertex_count);
+	} else {
+		CHECK(mesh_data.normals.empty());
+	}
+	if (uvs_present) {
+		CHECK(mesh_data.uvs.size() == expected_vertex_count);
+	} else {
+		CHECK(mesh_data.uvs.empty());
+	}
+}
+
+TEST_CASE("mesh_convert: fv_uv_seam_orphan_quads.usda converts with UV channel size equal to vertex count and empty "
+		  "normals, after splits and compaction") {
+	// UVs with both split appends and compaction
+	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("fv_uv_seam_orphan_quads.usda"));
+	REQUIRE(stage != nullptr);
+	auto mesh_data =
+			godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/FvUvSeamOrphanQuads")));
+	check_channel_size_invariant(mesh_data, 8, /*normals_present=*/false, /*uvs_present=*/true);
+}
+
+TEST_CASE("mesh_convert: indexed_primvars_quads.usda converts with UV and normal channel sizes equal to vertex count, "
+		  "after splits") {
+	// UVs and normals present, each causing its own split
+	PXR_NS::UsdStageRefPtr stage = PXR_NS::UsdStage::Open(fixture_path("indexed_primvars_quads.usda"));
+	REQUIRE(stage != nullptr);
+	auto mesh_data =
+			godot_usd::translate::to_mesh_data(stage->GetPrimAtPath(PXR_NS::SdfPath("/Root/IndexedPrimvarsQuads")));
+	check_channel_size_invariant(mesh_data, 8, /*normals_present=*/true, /*uvs_present=*/true);
+}
+
+TEST_CASE("mesh_convert: inline mesh data converts with normal channel size equal to vertex count and empty UVs, after "
+		  "splits and compaction") {
+	// Normals with both split appends and compaction
+	PXR_NS::VtArray<int> face_counts{4, 4};
+	PXR_NS::VtArray<int> face_indices{0, 1, 2, 3, 3, 2, 4, 5};
+	// Unreferenced point (100, 0, 100) forces compaction
+	PXR_NS::VtArray<PXR_NS::GfVec3f> points{PXR_NS::GfVec3f(-2, 0, -1), PXR_NS::GfVec3f(-2, 0, 1),
+			PXR_NS::GfVec3f(0, 0, 1), PXR_NS::GfVec3f(0, 0, -1), PXR_NS::GfVec3f(2, 0, 1), PXR_NS::GfVec3f(2, 0, -1),
+			PXR_NS::GfVec3f(100, 0, 100)};
+	// faceVarying normals that differ at points 2 and 3 force splits
+	PXR_NS::VtArray<PXR_NS::GfVec3f> normals_values{PXR_NS::GfVec3f(1, 0, 0), PXR_NS::GfVec3f(0, 1, 0),
+			PXR_NS::GfVec3f(0, 0, 1), PXR_NS::GfVec3f(-1, 0, 0), PXR_NS::GfVec3f(0, -1, 0), PXR_NS::GfVec3f(0, 0, -1),
+			PXR_NS::GfVec3f(0.6, 0.8, 0), PXR_NS::GfVec3f(0.8, 0.6, 0)};
+	auto normals_params = godot_usd::translate::MeshChannelParams<PXR_NS::GfVec3f>{
+			godot_usd::translate::InterpolationMode::FACE_VARYING, normals_values};
+	auto mesh_data = godot_usd::translate::to_mesh_data(
+			face_counts, face_indices, points, /*p_flip_winding=*/false, normals_params, std::nullopt);
+	// 8 expected vertices: 6 referenced points plus 2 split copies.
+	// Vertex count is 9 without compaction, 6 without splits, or 7 if neither splits nor compaction occurred.
+	check_channel_size_invariant(mesh_data, 8, /*normals_present=*/true, /*uvs_present=*/false);
+}

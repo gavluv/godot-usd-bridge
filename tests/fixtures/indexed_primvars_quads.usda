@@ -52,7 +52,8 @@
     broken st flatten would be masked by the normals still splitting, and
     the vertex count would stay at 8. As built, losing either channel drops
     the count to 7, with a different index array for each; losing both drops
-    it to 6. The doctests pin the channel VALUES; the dump prints none.
+    it to 6. The doctests pin both channels' VALUES, and the golden pins the
+    normals on the built surface.
 
     Identity indices would have made this useless: flattening [0..7] over 8
     values returns the input unchanged. The compression is the point."""

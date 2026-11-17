@@ -44,9 +44,9 @@
     proves the primvar was consulted at all.
 
     LIMIT: this asserts the FALLBACK path, not precedence itself. Proving that
-    primvars:normals wins when both are valid needs the chosen values to be
-    observable, and normals do not reach the node dump yet. When they do, this
-    file should gain a sibling with two valid, DIFFERENT normal sets."""
+    primvars:normals wins when both are valid needs a sibling fixture with two
+    valid, DIFFERENT normal sets, whose chosen values the node dump's nrm=
+    field shows."""
     defaultPrim = "Root"
     metersPerUnit = 1
     upAxis = "Y"

@@ -2,6 +2,7 @@
 #include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
 #include <godot_cpp/variant/packed_int32_array.hpp>
+#include <godot_cpp/variant/packed_vector2_array.hpp>
 #include <godot_cpp/variant/packed_vector3_array.hpp>
 
 #include <pxr/usd/usd/prim.h>
@@ -95,23 +96,55 @@ static godot::String get_error_reason_string(const MeshConvertError p_error_reas
 	return "Unknown error";
 }
 
+static bool channel_matches_vertex_count(size_t p_channel_size, size_t p_vertex_count) {
+	return p_channel_size == p_vertex_count;
+}
+
+static godot::String get_channel_size_mismatch_error_string(size_t p_channel_size, size_t p_vertex_count) {
+	return "channel array length (" + godot::String::num_uint64(p_channel_size) + ") does not match vertex count (" +
+		   godot::String::num_uint64(p_vertex_count) + ") and will be ignored";
+}
+
+template <typename TPacked, typename T> static TPacked to_packed_array(const std::vector<T> &p_values) {
+	TPacked packed_array;
+	int64_t res = packed_array.resize(p_values.size());
+	if (res != 0) {
+		ERR_PRINT("Failed to resize Godot packed array. Error code: " + godot::String::num_int64(res));
+		return TPacked();
+	}
+	if (p_values.empty()) {
+		return packed_array;
+	}
+	T *ptr = packed_array.ptrw();
+	for (size_t i = 0; i < p_values.size(); ++i) {
+		ptr[i] = p_values[i];
+	}
+	return packed_array;
+}
+
 godot::Ref<godot::ArrayMesh> godot_mesh(const MeshData &p_mesh_data) {
 	auto arrays = godot::Array();
 	arrays.resize(godot::Mesh::ARRAY_MAX);
 
-	auto positions_array = godot::PackedVector3Array();
-	positions_array.resize(p_mesh_data.positions.size());
-	for (size_t i = 0; i < p_mesh_data.positions.size(); ++i) {
-		positions_array.set(i, p_mesh_data.positions[i]);
-	}
-	arrays[godot::Mesh::ARRAY_VERTEX] = positions_array;
+	size_t vertex_count = p_mesh_data.positions.size();
 
-	auto triangles_array = godot::PackedInt32Array();
-	triangles_array.resize(p_mesh_data.triangles.size());
-	for (size_t i = 0; i < p_mesh_data.triangles.size(); ++i) {
-		triangles_array.set(i, p_mesh_data.triangles[i]);
+	arrays[godot::Mesh::ARRAY_VERTEX] = to_packed_array<godot::PackedVector3Array>(p_mesh_data.positions);
+
+	// Only write optional channels if they're the same size as positions, otherwise Godot rejects the entire
+	// surface; see servers/rendering/rendering_server.cpp, RenderingServer::mesh_create_surface_data_from_arrays,
+	// as of Godot 4.6.3.
+
+	if (channel_matches_vertex_count(p_mesh_data.normals.size(), vertex_count)) {
+		// Tangents are deliberately not written. Godot adds a placeholder when normals are present, and real tangents
+		// come with normal maps in v0.2.
+		arrays[godot::Mesh::ARRAY_NORMAL] = to_packed_array<godot::PackedVector3Array>(p_mesh_data.normals);
 	}
-	arrays[godot::Mesh::ARRAY_INDEX] = triangles_array;
+
+	if (channel_matches_vertex_count(p_mesh_data.uvs.size(), vertex_count)) {
+		arrays[godot::Mesh::ARRAY_TEX_UV] = to_packed_array<godot::PackedVector2Array>(p_mesh_data.uvs);
+	}
+
+	arrays[godot::Mesh::ARRAY_INDEX] = to_packed_array<godot::PackedInt32Array>(p_mesh_data.triangles);
 
 	auto mesh = godot::Ref<godot::ArrayMesh>();
 	mesh.instantiate();
@@ -123,18 +156,32 @@ godot::MeshInstance3D *import_mesh(const PXR_NS::UsdPrim &p_prim) {
 	godot::MeshInstance3D *mesh_instance = memnew(godot::MeshInstance3D);
 	auto mesh_data = to_mesh_data(p_prim);
 	auto warn_parts = godot::PackedStringArray();
+	auto importer_err_parts = godot::PackedStringArray();
 	if (mesh_data.warn_flags != 0) {
 		warn_parts.append(get_warn_flags_string(mesh_data.warn_flags));
 	}
 	if (mesh_data.normals_warn_flags != 0) {
 		warn_parts.append("[NORMALS] " + get_channel_warn_flags_string(mesh_data.normals_warn_flags));
 	}
+	if (!mesh_data.normals.empty() &&
+			!channel_matches_vertex_count(mesh_data.normals.size(), mesh_data.positions.size())) {
+		importer_err_parts.append("[NORMALS] " + get_channel_size_mismatch_error_string(
+														 mesh_data.normals.size(), mesh_data.positions.size()));
+	}
 	if (mesh_data.uvs_warn_flags != 0) {
 		warn_parts.append("[UVS] " + get_channel_warn_flags_string(mesh_data.uvs_warn_flags));
+	}
+	if (!mesh_data.uvs.empty() && !channel_matches_vertex_count(mesh_data.uvs.size(), mesh_data.positions.size())) {
+		importer_err_parts.append(
+				"[UVS] " + get_channel_size_mismatch_error_string(mesh_data.uvs.size(), mesh_data.positions.size()));
 	}
 	if (warn_parts.size() > 0) {
 		WARN_PRINT("USD mesh conversion warnings: " + godot::String(p_prim.GetPath().GetText()) + " (" +
 				   godot::String("; ").join(warn_parts) + ")");
+	}
+	if (importer_err_parts.size() > 0) {
+		ERR_PRINT("USD mesh conversion internal errors: " + godot::String(p_prim.GetPath().GetText()) + " (" +
+				  godot::String("; ").join(importer_err_parts) + ")");
 	}
 	if (mesh_data.is_valid()) {
 		if (!mesh_data.triangles.empty()) {

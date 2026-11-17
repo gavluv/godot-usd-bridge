@@ -63,6 +63,10 @@ $LogDir = Join-Path $RepoRoot "build/check-logs"
 # Expected output. Each entry is a substring that must appear in that fixture's
 # dump. They are chosen to fail when a specific bug class regresses, not merely
 # to describe current behavior.
+#
+# No needle pins nrm=<none>. Task 1.11 synthesizes normals for meshes that
+# author none, which would rewrite every such needle, so only fixtures whose
+# authored normals survive conversion carry a nrm= needle.
 # ---------------------------------------------------------------------------
 # Transform fields of a node whose local transform is identity, as
 # dump_stage.gd prints them. The task 1.6 needles run through these fields to
@@ -201,6 +205,11 @@ $FixtureExpectations = [ordered]@{
 		# count-mismatch fixtures, which warn and drop.
 		"WARNING: USD mesh conversion warnings: /Root/ZeroNormal ([NORMALS] contains zero-length normal value)",
 		"mesh='ZeroNormal' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 2, 1, 0, 3, 2]",
+		# The substitute reaches the surface: vertex 2 is authored (0, 0, 0)
+		# and must read (0, 1, 0) like the other three. A dropped channel
+		# prints <none>, and Godot 4.6.3 stores an unsubstituted zero normal
+		# as (0, 0, -1).
+		"nrm=[(0.00, 1.00, 0.00), (0.00, 1.00, 0.00), (0.00, 1.00, 0.00), (0.00, 1.00, 0.00)]",
 		"nodes: 3"
 	)
 	"normals_precedence"         = @(
@@ -230,11 +239,12 @@ $FixtureExpectations = [ordered]@{
 		"nodes: 3"
 	)
 	# ---- vertex splitting and compaction (task 1.4) ---------------------
-	# The dump prints no UV or normal values, so every channel-VALUE claim
-	# lives in the doctests. What these four add is the AABB: Godot computes
-	# it over the whole ARRAY_VERTEX rather than the vertices the index array
-	# reaches, so it is unreachable from MeshData and this is its only
-	# coverage.
+	# The doctests pin these meshes' MeshData; the entries here check what
+	# Godot builds from it. The AABB is computed over the whole ARRAY_VERTEX
+	# rather than the vertices the index array reaches, so it is unreachable
+	# from MeshData and this is its only coverage. The channel needles check
+	# that normals and UVs reach the surface on the right vertices;
+	# godot_mesh(), which copies them there, is outside the doctest exe.
 	"fv_uv_seam_quads"           = @(
 		# A faceVarying UV seam: corners 3/4 and 2/5 disagree, so points 3 and
 		# 2 each split, appending vertices 6 and 7. Those appended vertices
@@ -242,6 +252,11 @@ $FixtureExpectations = [ordered]@{
 		# that appended wrong positions keeps the vertex count right and shows
 		# up only here.
 		"mesh='FvUvSeamQuads' surfaces=1 surf0[verts=8 indices=12 tris=4] idx=[0, 2, 1, 0, 3, 2, 6, 4, 7, 6, 5, 4]",
+		# UVs per vertex, V-flipped. Vertices 6 and 7 are the split copies of
+		# points 3 and 2 and carry the second face's UVs, (0.75, 1) and
+		# (0.75, 0). A split that copied the first claim's channel values would
+		# repeat (0.5, 1) and (0.5, 0) there, and a lost V flip changes every v.
+		"uv=[(0.0000, 1.0000), (0.0000, 0.0000), (0.5000, 0.0000), (0.5000, 1.0000), (1.0000, 0.0000), (1.0000, 1.0000), (0.7500, 1.0000), (0.7500, 0.0000)]",
 		"aabb_pos=(-2.0000, 0.0000, -1.0000) aabb_size=(4.0000, 0.0000, 2.0000)",
 		"nodes: 3"
 	)
@@ -288,15 +303,29 @@ $FixtureExpectations = [ordered]@{
 		# which one. Losing both gives 6. Do not "simplify" the fixture's
 		# index arrays -- overlapping splits would mask either failure at 8.
 		"mesh='IndexedPrimvarsQuads' surfaces=1 surf0[verts=8 indices=12 tris=4] idx=[0, 2, 1, 0, 3, 2, 6, 4, 7, 6, 5, 4]",
+		# Flattened normals per vertex. Vertex 7 is point 2's split copy, the
+		# split the normals alone cause, so it reads (1, 0, 0) while vertex 2
+		# keeps (0, 1, 0). Normals placed on the wrong vertices, or dropped
+		# for failing to flatten, fail here.
+		"nrm=[(0.00, 1.00, 0.00), (0.00, 1.00, 0.00), (0.00, 1.00, 0.00), (0.00, 1.00, 0.00), (1.00, 0.00, 0.00), (1.00, 0.00, 0.00), (0.00, 1.00, 0.00), (1.00, 0.00, 0.00)]",
 		"aabb_pos=(-2.0000, 0.0000, -1.0000) aabb_size=(4.0000, 0.0000, 2.0000)",
 		"nodes: 3"
 	)
 	# ---- UV set resolution (task 1.4) -----------------------------------
-	# Two of the four UV-resolution fixtures have no entry here, deliberately.
-	# float2_st_quad and uv_fallback_after_bad_candidate_quad both assert the
-	# ABSENCE of a warning on a successful import, and neither failure mode
-	# moves any geometry -- so every needle they could carry would still match
-	# while the bug was present. Both are doctest-only; their docs say why.
+	# uv_fallback_after_bad_candidate_quad has no entry here, deliberately. It
+	# asserts the ABSENCE of a warning on a successful import, and its failure
+	# mode moves neither the geometry nor the UVs, so every needle it could
+	# carry would still match while the bug was present. It is doctest-only;
+	# its doc says why.
+	"float2_st_quad"             = @(
+		# A primary UV set declared float2[] rather than texCoord2f[]. The bug
+		# this guards against is silent: a type check on the named path would
+		# drop the UVs with no warning and leave the geometry unchanged, so
+		# the printed UVs are the only thing that moves, to uv=<none>.
+		"mesh='Float2StQuad' surfaces=1 surf0[verts=4 indices=6 tris=2] idx=[0, 2, 1, 0, 3, 2]",
+		"uv=[(0.0000, 1.0000), (0.0000, 0.0000), (1.0000, 0.0000), (1.0000, 1.0000)]",
+		"nodes: 3"
+	)
 	"uv_set_by_type_quads"       = @(
 		# A texCoord2f[] UV set named 'UVMap' rather than 'st', so the type
 		# scan is the only thing that can reach it. Needles are identical to

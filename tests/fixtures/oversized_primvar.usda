@@ -30,10 +30,10 @@
       - warns [UVS] unused values, and nothing else
 
     DETECTOR: this fails if validate_channel rejects on any size mismatch
-    instead of only on a short array. That bug is invisible in the geometry --
-    the surface is identical whether the UVs survive or not until normals and
-    UVs reach the mesh dump -- so the warning text is the assertion, and the
-    fact that it says 'unused' rather than 'truncated' is the point.
+    instead of only on a short array. That bug is invisible in the geometry,
+    which is identical whether the UVs survive or not, so the warning text is
+    the assertion, and the fact that it says 'unused' rather than 'truncated'
+    is the point. The dropped UVs would also show as uv=<none> in the dump.
 
     The expected line is pinned from '(' to ')', so a spurious [NORMALS]
     segment (this mesh authors no normals) also fails the match."""
